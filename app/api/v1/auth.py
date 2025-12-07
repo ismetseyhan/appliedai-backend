@@ -3,7 +3,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import verify_firebase_token
-from app.models.user import User
+from app.entities.user import User
 from app.schemas.user import UserResponse
 from app.api.deps import get_current_user, security
 

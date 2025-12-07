@@ -5,15 +5,16 @@ from typing import Optional
 
 def initialize_firebase():
     """
-    Initialize Firebase Admin SDK
+    Initialize Firebase Admin SDK with Storage
 
-    Requires: GOOGLE_APPLICATION_CREDENTIALS in settings
-    pointing to service account JSON file
+    Requires: GOOGLE_APPLICATION_CREDENTIALS
     """
     if not firebase_admin._apps:
         from app.core.config import settings
         cred = credentials.Certificate(settings.GOOGLE_APPLICATION_CREDENTIALS)
-        firebase_admin.initialize_app(cred)
+        firebase_admin.initialize_app(cred, {
+            'storageBucket': settings.FIREBASE_STORAGE_BUCKET
+        })
 
 
 def verify_firebase_token(token: str) -> Optional[dict]:
