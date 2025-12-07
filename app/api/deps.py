@@ -3,7 +3,10 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import verify_firebase_token
-from app.models.user import User
+from app.core.config import settings
+from app.entities.user import User
+from app.services.firebase_storage import FirebaseStorageService
+from app.services.document_service import DocumentService
 
 # HTTPBearer security scheme for Swagger UI
 security = HTTPBearer(
@@ -43,3 +46,16 @@ async def get_current_user(
         )
 
     return user
+
+
+def get_storage_service() -> FirebaseStorageService:
+    """Dependency: Get Firebase Storage Service instance."""
+    return FirebaseStorageService(settings.FIREBASE_STORAGE_BUCKET)
+
+
+def get_document_service(
+    db: Session = Depends(get_db),
+    storage_service: FirebaseStorageService = Depends(get_storage_service)
+) -> DocumentService:
+    """Dependency: Get Document Service instance."""
+    return DocumentService(db=db, storage_service=storage_service)
