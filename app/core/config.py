@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     # Firebase service account JSON file path
     GOOGLE_APPLICATION_CREDENTIALS: str = "./firebase-service-account.json"
 
+    # Firebase Storage
+    FIREBASE_STORAGE_BUCKET: str
+
     # Database Configuration
     DB_HOST: str = "localhost"
     DB_PORT: int = 5432

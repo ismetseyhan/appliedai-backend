@@ -4,6 +4,7 @@ uvicorn[standard]==0.38.0
 pydantic==2.12.5
 pydantic-settings==2.12.0
 email-validator==2.2.0
+python-multipart==0.0.20
 
 # Environment & Utilities
 python-dotenv==1.2.1
