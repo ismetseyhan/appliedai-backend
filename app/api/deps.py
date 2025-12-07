@@ -34,7 +34,7 @@ async def get_current_user(
 
     # Get user from database
     firebase_uid = decoded_token.get("uid")
-    user = db.query(User).filter(User.firebase_uid == firebase_uid).first()
+    user = db.query(User).filter(User.id == firebase_uid).first()
 
     if not user:
         raise HTTPException(

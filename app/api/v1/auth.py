@@ -50,7 +50,7 @@ async def register_user(
     name = decoded_token.get("name")
 
     # Check if user already exists
-    existing_user = db.query(User).filter(User.firebase_uid == firebase_uid).first()
+    existing_user = db.query(User).filter(User.id == firebase_uid).first()
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -59,7 +59,7 @@ async def register_user(
 
     # Create user
     new_user = User(
-        firebase_uid=firebase_uid,
+        id=firebase_uid,
         email=email,
         display_name=name
     )

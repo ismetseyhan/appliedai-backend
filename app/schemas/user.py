@@ -15,7 +15,6 @@ class UserCreate(BaseModel):
 
 class UserResponse(BaseModel):
     id: str
-    firebase_uid: str
     email: str
     display_name: Optional[str]
     created_at: datetime
