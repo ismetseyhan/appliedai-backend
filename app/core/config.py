@@ -8,8 +8,22 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     CORS_ORIGINS_STR: str = "http://localhost:3000,http://localhost:3001"
 
+    # Firebase service account JSON file path
+    GOOGLE_APPLICATION_CREDENTIALS: str = "./firebase-service-account.json"
+
+    # Database Configuration
+    DB_HOST: str = "localhost"
+    DB_PORT: int = 5432
+    DB_USER: str = "postgres"
+    DB_PASSWORD: str  # Must be set in .env
+    DB_NAME: str = "movieapp"
+
     class Config:
         env_file = ".env"
+
+    @property
+    def DATABASE_URL(self) -> str:
+        return f"postgresql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
 
     @property
     def CORS_ORIGINS(self) -> List[str]:
