@@ -1,11 +1,38 @@
 from fastapi import FastAPI, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.utils import get_openapi
 from app.core.config import settings
+from app.core.security import initialize_firebase
+from app.api.v1 import auth
+
+# Initialize Firebase
+initialize_firebase()
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
     debug=settings.is_development,
 )
+
+
+#  OpenAPI schema
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    openapi_schema = get_openapi(
+        title=settings.PROJECT_NAME,
+        version="1.0.0",
+        description="Multi-Agent Movie Intelligence System API with Firebase Authentication",
+        routes=app.routes,
+    )
+    # HTTPBearer description
+    if "securitySchemes" in openapi_schema.get("components", {}):
+        if "HTTPBearer" in openapi_schema["components"]["securitySchemes"]:
+            openapi_schema["components"]["securitySchemes"]["HTTPBearer"]["description"] = "Enter your Firebase ID token (without 'Bearer' prefix)"
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+
+app.openapi = custom_openapi
 
 # CORS
 app.add_middleware(
@@ -36,4 +63,13 @@ async def health_check():
 
 
 api_router = APIRouter()
-app.include_router(api_router, prefix=settings.API_BASE_PREFIX)
+
+# Include auth router
+api_router.include_router(
+    auth.router,
+    prefix="/auth",
+    tags=["Authentication"]
+)
+
+# API v1 router
+app.include_router(api_router, prefix=f"{settings.API_BASE_PREFIX}/v1")
