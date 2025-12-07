@@ -6,3 +6,14 @@ pydantic-settings==2.12.0
 
 # Environment & Utilities
 python-dotenv==1.2.1
+
+# Firebase Authentication
+firebase-admin==7.1.0
+
+# PostgreSQL + SQLAlchemy
+sqlalchemy==2.0.44
+psycopg2-binary==2.9.11
+alembic==1.17.2
+
+# Authentication
+python-jose[cryptography]==3.5.0
