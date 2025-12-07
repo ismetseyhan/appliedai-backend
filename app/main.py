@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from app.core.config import settings
 from app.core.security import initialize_firebase
-from app.api.v1 import auth
+from app.api.v1 import auth, documents
 
 # Initialize Firebase
 initialize_firebase()
@@ -69,6 +69,12 @@ api_router.include_router(
     auth.router,
     prefix="/auth",
     tags=["Authentication"]
+)
+# documents router
+api_router.include_router(
+    documents.router,
+    prefix="/documents",
+    tags=["Documents"]
 )
 
 # API v1 router
