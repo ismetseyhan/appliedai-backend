@@ -7,7 +7,9 @@ class FirebaseStorageService:
     """
     Firebase Storage service for document management
 
-    Storage structure: documents/{user_id}/{filename}
+    Storage structure:
+    - Documents: documents/{user_id}/{filename}
+    - SQLite: sqlite/current.db (global)
     """
 
     def __init__(self, bucket_name: str):
@@ -17,26 +19,35 @@ class FirebaseStorageService:
         self,
         file_content: bytes,
         user_id: str,
-        filename: str
+        filename: str,
+        folder: str = "documents",
+        content_type: str = 'application/pdf'
     ) -> Optional[str]:
         """
         Upload file to Firebase Storage
 
         Args:
             file_content: File bytes
-            user_id: User ID (Firebase UID)
+            user_id: User ID (Firebase UID) - ignored for global folders
             filename: Original filename
+            folder: Folder path (default: "documents")
+            content_type: MIME type (default: application/pdf)
 
         Returns:
             gs:// path or None if error
         """
         try:
-            storage_path = f"documents/{user_id}/{filename}"
+            # For global resources (like sqlite), ignore user_id
+            if folder == "sqlite":
+                storage_path = f"{folder}/{filename}"
+            else:
+                storage_path = f"{folder}/{user_id}/{filename}"
+
             blob = self.bucket.blob(storage_path)
 
             blob.upload_from_string(
                 file_content,
-                content_type='application/pdf'
+                content_type=content_type
             )
 
             return f"gs://{self.bucket.name}/{storage_path}"

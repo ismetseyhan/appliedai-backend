@@ -7,6 +7,8 @@ from app.core.config import settings
 from app.entities.user import User
 from app.services.firebase_storage import FirebaseStorageService
 from app.services.document_service import DocumentService
+from app.services.sqlite_service import SQLiteService
+from app.repositories.sqlite_database_repository import SQLiteDatabaseRepository
 
 # HTTPBearer security scheme for Swagger UI
 security = HTTPBearer(
@@ -59,3 +61,12 @@ def get_document_service(
 ) -> DocumentService:
     """Dependency: Get Document Service instance."""
     return DocumentService(db=db, storage_service=storage_service)
+
+
+def get_sqlite_service(
+    db: Session = Depends(get_db),
+    storage_service: FirebaseStorageService = Depends(get_storage_service)
+) -> SQLiteService:
+    """Dependency: Get SQLite Service instance"""
+    db_repository = SQLiteDatabaseRepository(db=db)
+    return SQLiteService(storage_service=storage_service, db_repository=db_repository)
