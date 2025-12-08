@@ -28,6 +28,9 @@ firebase-service-account.json
 *.db-wal
 *.db-shm
 
+# SQLite cache
+.cache/
+
 # OS
 .DS_Store
 Thumbs.db
