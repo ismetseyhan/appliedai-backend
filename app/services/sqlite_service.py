@@ -13,7 +13,8 @@ from pathlib import Path
 from typing import Optional, List
 from fastapi import HTTPException, status, UploadFile
 
-from app.services.firebase_storage import FirebaseStorageService
+from app.services.firebase_storage_service import FirebaseStorageService
+from app.services.prompt_generator_service import PromptGeneratorService
 from app.repositories.sqlite_database_repository import SQLiteDatabaseRepository
 from app.schemas.sqlite import (
     DatabaseInfoResponse,
@@ -476,3 +477,36 @@ class SQLiteService:
         """Validate table name to prevent SQL injection."""
         # Only allow alphanumeric and underscore
         return bool(re.match(r'^[a-zA-Z0-9_]+$', table_name))
+
+    async def generate_sql_agent_prompt(self, llm_service) -> str:
+        """
+        Generate Text-to-SQL agent prompt for current database.
+        """
+
+        db_record = self.db_repository.get_current_database()
+        if not db_record:
+            raise ValueError("No database uploaded")
+
+        # cache
+        db_path = self.CACHE_FILE
+        if not db_path.exists():
+            # Download from  firebase storage
+            self._download_to_cache()
+
+        # prompt generator service
+        prompt_generator = PromptGeneratorService(llm_service)
+
+        # Generate prompt
+        generated_prompt = await prompt_generator.generate_prompt(
+            db_path=db_path,
+            db_name=db_record.database_name,
+            allowed_operations=db_record.allowed_operations
+        )
+
+        # Save to database
+        self.db_repository.update_sql_agent_prompt(
+            db_id=db_record.id,
+            prompt=generated_prompt
+        )
+
+        return generated_prompt

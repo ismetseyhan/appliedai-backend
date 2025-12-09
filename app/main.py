@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from app.core.config import settings
 from app.core.security import initialize_firebase
-from app.api.v1 import auth, documents, sqlite
+from app.api.v1 import auth, documents, sqlite, llm
 
 # Initialize Firebase
 initialize_firebase()
@@ -81,6 +81,12 @@ api_router.include_router(
     sqlite.router,
     prefix="/sqlite",
     tags=["SQLite Databases"]
+)
+# llm router
+api_router.include_router(
+    llm.router,
+    prefix="/llm",
+    tags=["LLM / AI"]
 )
 
 # API v1 router

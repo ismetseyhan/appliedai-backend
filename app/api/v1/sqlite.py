@@ -1,10 +1,11 @@
 """
-SQLite API Endpoints -
+SQLite API Endpoints
 """
-from fastapi import APIRouter, Depends, status, UploadFile, File
+from fastapi import APIRouter, Depends, status, UploadFile, File, HTTPException, BackgroundTasks
 from typing import Optional
+from datetime import datetime
 
-from app.api.deps import get_sqlite_service
+from app.api.deps import get_sqlite_service, get_llm_service, get_current_user
 from app.schemas.sqlite import (
     DatabaseInfoResponse,
     DatabaseSchema,
@@ -12,9 +13,13 @@ from app.schemas.sqlite import (
     QueryResult,
     TablePreviewResponse,
     AllowedOperationsUpdate,
-    SQLiteDatabaseMetadata
+    SQLiteDatabaseMetadata,
+    PromptGenerationResponse,
+    PromptUpdateRequest,
 )
 from app.services.sqlite_service import SQLiteService
+from app.services.llm_service import LLMService
+from app.entities.user import User
 
 
 router = APIRouter()
@@ -28,16 +33,15 @@ router = APIRouter()
 )
 async def upload_database(
     file: UploadFile = File(...),
-    service: SQLiteService = Depends(get_sqlite_service)
+    background_tasks: BackgroundTasks = BackgroundTasks(),
+    current_user: User = Depends(get_current_user),
+    service: SQLiteService = Depends(get_sqlite_service),
+    llm_service: LLMService = Depends(get_llm_service)
 ):
-    """
-    Upload a SQLite .db file to Firebase Storage (global).
-
-    Replaces existing database if any.
-
-    - **file**: SQLite .db file to upload
-    """
-    return service.upload_database(file=file)
+    """Upload SQLite database and trigger background prompt generation"""
+    db_info = service.upload_database(file=file)
+    background_tasks.add_task(service.generate_sql_agent_prompt, llm_service)
+    return db_info
 
 
 @router.get(
@@ -48,15 +52,7 @@ async def upload_database(
 async def get_database_info(
     service: SQLiteService = Depends(get_sqlite_service)
 ):
-    """
-    Get information about current global database.
-
-    Returns:
-    - exists: Whether database exists
-    - file_name: Database filename
-    - file_size: Size in bytes
-    - upload_date: Last upload timestamp
-    """
+    """Get database information"""
     return service.get_database_info()
 
 
@@ -68,9 +64,7 @@ async def get_database_info(
 async def delete_database(
     service: SQLiteService = Depends(get_sqlite_service)
 ):
-    """
-    Delete global SQLite database from Firebase Storage.
-    """
+    """Delete database from storage"""
     service.delete_database()
     return None
 
@@ -83,11 +77,7 @@ async def delete_database(
 async def get_schema(
     service: SQLiteService = Depends(get_sqlite_service)
 ):
-    """
-    Get schema of global SQLite database.
-
-    Returns tables with their columns and data types.
-    """
+    """Get database schema"""
     return service.get_schema()
 
 
@@ -100,16 +90,7 @@ async def execute_query(
     request: QueryRequest,
     service: SQLiteService = Depends(get_sqlite_service)
 ):
-    """
-    Execute a read-only SQL query on global database.
-
-    Security:
-    - Only SELECT queries allowed
-    - SQL injection prevention
-    - No DDL/DML operations
-
-    - **query**: SQL SELECT statement
-    """
+    """Execute SQL query with permission checks"""
     return service.execute_query(query=request.query)
 
 
@@ -123,12 +104,7 @@ async def get_table_preview(
     limit: Optional[int] = 10,
     service: SQLiteService = Depends(get_sqlite_service)
 ):
-    """
-    Get sample rows from a table.
-
-    - **table_name**: Name of the table
-    - **limit**: Number of rows to return (default: 10)
-    """
+    """Get sample rows from table"""
     return service.get_table_preview(table_name=table_name, limit=limit)
 
 
@@ -141,9 +117,89 @@ async def update_permissions(
     request: AllowedOperationsUpdate,
     service: SQLiteService = Depends(get_sqlite_service)
 ):
-    """
-    Update allowed SQL operations for the current database.
-
-    - **allowed_operations**: List of allowed operations (SELECT, INSERT, UPDATE, DELETE)
-    """
+    """Update allowed SQL operations"""
     return service.update_allowed_operations(allowed_operations=request.allowed_operations)
+
+
+@router.post(
+    "/generate-prompt",
+    response_model=PromptGenerationResponse,
+    summary="Generate Text-to-SQL agent prompt"
+)
+async def generate_agent_prompt(
+    current_user: User = Depends(get_current_user),
+    sqlite_service: SQLiteService = Depends(get_sqlite_service),
+    llm_service: LLMService = Depends(get_llm_service)
+):
+    """Generate Text-to-SQL agent prompt using LLM"""
+    try:
+        prompt = await sqlite_service.generate_sql_agent_prompt(llm_service)
+        db_record = sqlite_service.db_repository.get_current_database()
+        if not db_record:
+            raise HTTPException(status_code=404, detail="No database uploaded")
+        return PromptGenerationResponse(
+            prompt=prompt,
+            database_name=db_record.database_name,
+            generated_at=datetime.utcnow()
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Prompt generation failed: {str(e)}")
+
+
+@router.get(
+    "/agent-prompt",
+    response_model=PromptGenerationResponse,
+    summary="Get current Text-to-SQL agent prompt"
+)
+async def get_agent_prompt(
+    current_user: User = Depends(get_current_user),
+    sqlite_service: SQLiteService = Depends(get_sqlite_service)
+):
+    """Get current Text-to-SQL agent prompt"""
+    try:
+        db_record = sqlite_service.db_repository.get_current_database()
+        if not db_record:
+            raise HTTPException(status_code=404, detail="No database uploaded")
+        if not db_record.sql_agent_prompt:
+            raise HTTPException(status_code=404, detail="Prompt not generated yet")
+        return PromptGenerationResponse(
+            prompt=db_record.sql_agent_prompt,
+            database_name=db_record.database_name,
+            generated_at=db_record.updated_at
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch(
+    "/agent-prompt",
+    response_model=PromptGenerationResponse,
+    summary="Update Text-to-SQL agent prompt"
+)
+async def update_agent_prompt(
+    request: PromptUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    sqlite_service: SQLiteService = Depends(get_sqlite_service)
+):
+    """Update Text-to-SQL agent prompt with user edits"""
+    try:
+        db_record = sqlite_service.db_repository.get_current_database()
+        if not db_record:
+            raise HTTPException(status_code=404, detail="No database uploaded")
+        updated_record = sqlite_service.db_repository.update_sql_agent_prompt(
+            db_id=db_record.id,
+            prompt=request.prompt
+        )
+        return PromptGenerationResponse(
+            prompt=updated_record.sql_agent_prompt,
+            database_name=updated_record.database_name,
+            generated_at=updated_record.updated_at
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

@@ -78,3 +78,30 @@ class AllowedOperationsUpdate(BaseModel):
                 "allowed_operations": ["SELECT", "INSERT", "UPDATE"]
             }
         }
+
+
+# ============================================================================
+#  Dynamic Agent Prompt Schemas
+# ============================================================================
+
+class PromptGenerationResponse(BaseModel):
+    """Response for prompt generation"""
+    prompt: str
+    database_name: str
+    generated_at: datetime
+
+
+class PromptUpdateRequest(BaseModel):
+    """Request to update prompt manually"""
+    prompt: str
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "prompt": "You are a SQL expert assistant..."
+            }
+        }
+
+    def validate_prompt_length(self):
+        if len(self.prompt.strip()) < 10:
+            raise ValueError("Prompt must be at least 10 characters")

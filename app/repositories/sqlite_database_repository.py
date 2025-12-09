@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from app.entities.sqlite_database import SQLiteDatabase
 from typing import Optional
+from datetime import datetime
 
 
 class SQLiteDatabaseRepository:
@@ -53,6 +54,23 @@ class SQLiteDatabaseRepository:
             db_record.allowed_operations = allowed_operations
             self.db.commit()
             self.db.refresh(db_record)
+
+        return db_record
+
+    def update_sql_agent_prompt(self, db_id: str, prompt: str) -> SQLiteDatabase:
+
+        db_record = self.db.query(SQLiteDatabase).filter(
+            SQLiteDatabase.id == db_id
+        ).first()
+
+        if not db_record:
+            raise ValueError(f"Database with id {db_id} not found")
+
+        db_record.sql_agent_prompt = prompt
+        db_record.updated_at = datetime.utcnow()
+
+        self.db.commit()
+        self.db.refresh(db_record)
 
         return db_record
 
