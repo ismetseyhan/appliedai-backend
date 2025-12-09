@@ -5,9 +5,10 @@ from app.core.database import get_db
 from app.core.security import verify_firebase_token
 from app.core.config import settings
 from app.entities.user import User
-from app.services.firebase_storage import FirebaseStorageService
+from app.services.firebase_storage_service import FirebaseStorageService
 from app.services.document_service import DocumentService
 from app.services.sqlite_service import SQLiteService
+from app.services.llm_service import LLMService
 from app.repositories.sqlite_database_repository import SQLiteDatabaseRepository
 
 # HTTPBearer security scheme for Swagger UI
@@ -70,3 +71,7 @@ def get_sqlite_service(
     """Dependency: Get SQLite Service instance"""
     db_repository = SQLiteDatabaseRepository(db=db)
     return SQLiteService(storage_service=storage_service, db_repository=db_repository)
+
+def get_llm_service() -> LLMService:
+    """Dependency: Get LLM Service instance."""
+    return LLMService()

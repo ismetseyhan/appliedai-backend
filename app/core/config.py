@@ -14,6 +14,11 @@ class Settings(BaseSettings):
     # Firebase Storage
     FIREBASE_STORAGE_BUCKET: str
 
+    # OpenAI Configuration
+    OPENAI_API_KEY: str  # env
+    OPENAI_MODEL_NAME: str = "gpt-4o"  # Default
+    OPENAI_BASE_URL: str = "https://api.openai.com/v1"
+
     # Database Configuration
     DB_HOST: str = "localhost"
     DB_PORT: int = 5432

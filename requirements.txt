@@ -16,3 +16,6 @@ firebase-admin==7.1.0
 sqlalchemy==2.0.44
 psycopg2-binary==2.9.11
 alembic==1.17.2
+
+# OpenAI LLM
+openai==2.9.0
