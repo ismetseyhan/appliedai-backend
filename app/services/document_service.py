@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.entities.document import Document, ProcessingStatus
 from app.entities.user import User
 from app.repositories.document_repository import DocumentRepository
-from app.services.firebase_storage import FirebaseStorageService
+from app.services.firebase_storage_service import FirebaseStorageService
 from app.schemas.document import DocumentResponse, DocumentWithUrl, DocumentList
 
 
