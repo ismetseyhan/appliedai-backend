@@ -10,6 +10,8 @@ from app.services.document_service import DocumentService
 from app.services.sqlite_service import SQLiteService
 from app.services.llm_service import LLMService
 from app.repositories.sqlite_database_repository import SQLiteDatabaseRepository
+from app.repositories.user_preferences_repository import UserPreferencesRepository
+from app.services.user_preferences_service import UserPreferencesService
 
 # HTTPBearer security scheme for Swagger UI
 security = HTTPBearer(
@@ -75,3 +77,9 @@ def get_sqlite_service(
 def get_llm_service() -> LLMService:
     """Dependency: Get LLM Service instance."""
     return LLMService()
+
+
+def get_user_preferences_service(db: Session = Depends(get_db)) -> UserPreferencesService:
+    """Dependency: Get User Preferences Service instance."""
+    repository = UserPreferencesRepository(db)
+    return UserPreferencesService(repository)
