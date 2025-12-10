@@ -3,7 +3,7 @@ fastapi==0.124.0
 uvicorn[standard]==0.38.0
 pydantic==2.12.5
 pydantic-settings==2.12.0
-email-validator==2.2.0
+email-validator==2.3.0
 python-multipart==0.0.20
 
 # Environment & Utilities
@@ -19,3 +19,8 @@ alembic==1.17.2
 
 # OpenAI LLM
 openai==2.9.0
+
+# LangChain for Agents
+langchain==1.1.3
+langchain-openai==1.1.1
+langchain-community==0.4.1
