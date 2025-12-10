@@ -36,3 +36,33 @@ REQUIREMENTS FOR THE PROMPT YOU GENERATE:
 IMPORTANT: Generate ONLY the system prompt text. Do NOT include explanations, meta-commentary, or markdown formatting. Just the raw prompt text that will be used as the Text-to-SQL agent's system message.
 
 Generate the optimal Text-to-SQL agent system prompt now:"""
+
+
+# Final prompt template for Text-to-SQL agent workflow
+SQL_AGENT_ENHANCED_PROMPT = """
+## Available Tools
+
+1. **sql_db_query_checker** - Validates SQL syntax
+   - Checks query correctness before execution
+   - Suggests corrections for syntax errors
+
+2. **execute_sql_query** - Executes SQL query
+   - Returns columns, rows, and row_count
+   - Respects user permissions
+   - Max {max_sql_queries} queries per request
+
+## Workflow
+
+1. Write SQL based on schema above
+2. OPTIONAL: Use sql_db_query_checker to validate
+3. Use execute_sql_query to run query
+4. If error occurs, analyze and retry with corrected query
+5. Return clear natural language answer
+
+## Important Rules
+- Maximum {max_sql_queries} SQL queries per request
+- Retry queries if errors occur (error messages help fix mistakes)
+- Provide clear natural language answer after getting results
+- Respect user permissions (some operations may be restricted)
+- If a process is interrupted due to an unauthorized operation, inform the user of the reason. 
+"""
