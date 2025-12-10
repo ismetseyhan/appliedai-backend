@@ -15,19 +15,34 @@ from langchain_community.agent_toolkits import SQLDatabaseToolkit
 
 from app.services.sqlite_service import SQLiteService
 from app.services.llm_service import LLMService
+from app.services.user_preferences_service import UserPreferencesService
 from app.schemas.text_to_sql import TextToSQLResponse, AgentStep
 from app.prompts.prompt_manager import SQL_AGENT_ENHANCED_PROMPT
 
 
 class TextToSQLAgent:
 
-    def __init__(self, sqlite_service: SQLiteService, llm_service: LLMService):
+    def __init__(
+        self,
+        sqlite_service: SQLiteService,
+        llm_service: LLMService,
+        preferences_service: UserPreferencesService,
+        user_id: str
+    ):
         self.sqlite_service = sqlite_service
         self.llm_service = llm_service
+        self.user_id = user_id
         self.sql_count = 0
         self.sql_queries = []
         self.results = []
-        self._db = None  # Lazy-loaded SQLDatabase for LangChain
+        self._db = None
+
+        self.query_checker_enabled = preferences_service.get_query_checker_enabled(user_id)
+
+        db_record = self.sqlite_service.db_repository.get_current_database()
+        if not db_record or not db_record.sql_agent_prompt:
+            raise ValueError("SQL agent prompt not generated. Generate prompt first via /generate-prompt endpoint.")
+        self.base_prompt = db_record.sql_agent_prompt
 
     def _get_sql_database(self) -> SQLDatabase:
         """Lazy-load SQLDatabase wrapper."""
@@ -211,21 +226,11 @@ Provide a concise, helpful answer:"""
             return "Tool executed via bind_tools"
 
         tools = [execute_sql_query]
-        if query_checker:
+        if query_checker and self.query_checker_enabled:
             tools.append(query_checker)
-
         return tools
 
     async def _get_system_prompt(self) -> str:
-        """Build system prompt: base (from DB) + static rule template."""
-        db_record = self.sqlite_service.db_repository.get_current_database()
-
-        if not db_record or not db_record.sql_agent_prompt:
-            raise ValueError("SQL agent prompt not generated. Generate prompt first via /generate-prompt endpoint.")
-
-        base_prompt = db_record.sql_agent_prompt  # Dynamic schema from prompt_generator_service
-
-        # Add workflow instructions from prompt template
-        enhanced_prompt = f"{base_prompt}\n\n{SQL_AGENT_ENHANCED_PROMPT.format(max_sql_queries=self.max_sql_queries)}"
-
+        """Build system prompt: cached base + dynamic parameters."""
+        enhanced_prompt = f"{self.base_prompt}\n\n{SQL_AGENT_ENHANCED_PROMPT.format(max_sql_queries=self.max_sql_queries)}"
         return enhanced_prompt
