@@ -42,13 +42,7 @@ class SQLiteService:
         self.CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
     def _download_to_cache(self) -> Path:
-        """
-        Download database from Firebase to local cache.
-        Only called when cache is missing or invalidated.
-
-        Returns:
-            Path to cached database file
-        """
+        """Download database from Firebase to local cache."""
         blob = self.storage_service.bucket.blob(self.GLOBAL_DB_PATH)
 
         if not blob.exists():
@@ -57,7 +51,6 @@ class SQLiteService:
                 detail="Database file not found in storage"
             )
 
-        # Download to cache
         file_content = blob.download_as_bytes()
         self.CACHE_FILE.write_bytes(file_content)
 
@@ -69,15 +62,7 @@ class SQLiteService:
             self.CACHE_FILE.unlink()
 
     def upload_database(self, file: UploadFile) -> DatabaseInfoResponse:
-        """
-        Upload a SQLite .db file to Firebase Storage (global).
-
-        Business logic:
-        - Validate file extension (.db)
-        - Validate SQLite magic bytes
-        - Upload to Firebase Storage at fixed path: sqlite/current.db
-        - Overwrites existing file if present
-        """
+        """Upload SQLite database to Firebase Storage and create metadata record."""
 
         if not file.filename.endswith('.db'):
             raise HTTPException(
@@ -129,16 +114,7 @@ class SQLiteService:
         )
 
     def get_database_info(self) -> DatabaseInfoResponse:
-        """
-        Get information about current sqllite  database including metadata.
-
-        Returns:
-            exists: bool - whether database exists
-            file_name: str - original uploaded filename
-            file_size: int - size in bytes
-            upload_date: datetime - last upload time
-            metadata: database permissions and config
-        """
+        """Get current database info and metadata."""
         blob = self.storage_service.bucket.blob(self.GLOBAL_DB_PATH)
 
         if not blob.exists():
@@ -156,14 +132,7 @@ class SQLiteService:
         )
 
     def delete_database(self) -> None:
-        """
-        Delete global SQLite database from Firebase Storage and invalidate cache.
-
-        Business logic:
-        - Delete from Firebase Storage at fixed path
-        - Delete metadata record from PostgreSQL
-        - Invalidate local cache
-        """
+        """Delete database from Firebase Storage, PostgreSQL, and invalidate cache."""
         deleted = self.storage_service.delete_file(self.GLOBAL_DB_PATH)
 
         if not deleted:
@@ -177,11 +146,7 @@ class SQLiteService:
         self._invalidate_cache()
 
     def get_schema(self) -> DatabaseSchema:
-        """
-        Get schema of global SQLite database.
-
-        Returns tables with their columns and data types.
-        """
+        """Get database schema (tables, columns, data types)."""
 
         blob = self.storage_service.bucket.blob(self.GLOBAL_DB_PATH)
         if not blob.exists():
@@ -193,7 +158,6 @@ class SQLiteService:
         with self._get_sqlite_connection() as conn:
             cursor = conn.cursor()
 
-            # Get all tables
             cursor.execute(
                 "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
             )
@@ -201,7 +165,6 @@ class SQLiteService:
 
             table_schemas = []
             for (table_name,) in tables:
-                # Get column info for each table
                 cursor.execute(f"PRAGMA table_info({table_name})")
                 columns = cursor.fetchall()
 
@@ -220,15 +183,7 @@ class SQLiteService:
             return DatabaseSchema(tables=table_schemas)
 
     def update_allowed_operations(self, allowed_operations: List[str]) -> SQLiteDatabaseMetadata:
-        """
-        Update allowed SQL operations for the current database.
-
-        Args:
-            allowed_operations: List of allowed operations (SELECT, INSERT, UPDATE, DELETE)
-
-        Returns:
-            Updated database metadata
-        """
+        """Update allowed SQL operations (SELECT, INSERT, UPDATE, DELETE)."""
 
         valid_operations = {"SELECT", "INSERT", "UPDATE", "DELETE"}
         if not all(op in valid_operations for op in allowed_operations):
@@ -252,14 +207,7 @@ class SQLiteService:
         return SQLiteDatabaseMetadata.model_validate(updated_record)
 
     def execute_query(self, query: str) -> QueryResult:
-        """
-        Execute SQL query on global database with permission checks.
-
-        Reason :Security:
-        - Validates query against allowed operations
-        - SQL injection prevention via validation
-        - Permission-based query execution
-        """
+        """Execute SQL query with permission and safety validation."""
 
         blob = self.storage_service.bucket.blob(self.GLOBAL_DB_PATH)
         if not blob.exists():
@@ -271,10 +219,8 @@ class SQLiteService:
         db_record = self.db_repository.get_current_database()
         allowed_operations = db_record.allowed_operations if db_record else ["SELECT"]
 
-        #normalize newlines
         query = ' '.join(query.split())
 
-        # Validate query safety and permissions
         if not self._is_safe_query(query, allowed_operations):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -290,10 +236,8 @@ class SQLiteService:
                 query_upper = query.strip().upper()
                 if query_upper.startswith(('INSERT', 'UPDATE', 'DELETE')):
                     conn.commit()
-
                     affected_rows = cursor.rowcount
 
-                    # Upload modified database -syncs with Cloud
                     modified_db_content = self.CACHE_FILE.read_bytes()
                     self.storage_service.upload_file(
                         file_content=modified_db_content,
@@ -309,9 +253,7 @@ class SQLiteService:
                         row_count=affected_rows
                     )
                 else:
-                    # For SELECT, fetch results
                     rows = cursor.fetchall()
-                    # Get column names
                     columns = [desc[0] for desc in cursor.description] if cursor.description else []
                     return QueryResult(
                         columns=columns,
@@ -325,13 +267,7 @@ class SQLiteService:
                 )
 
     def get_table_preview(self, table_name: str, limit: int = 10) -> TablePreviewResponse:
-        """
-        Get sample rows from a table.
-
-        Args:
-            table_name: Name of the table
-            limit: Number of rows to return (default 10)
-        """
+        """Get sample rows from a table."""
 
         blob = self.storage_service.bucket.blob(self.GLOBAL_DB_PATH)
         if not blob.exists():
@@ -366,7 +302,6 @@ class SQLiteService:
                 cursor.execute(f"SELECT * FROM {table_name} LIMIT ?", (limit,))
                 rows = cursor.fetchall()
 
-                # Get column names
                 columns = [desc[0] for desc in cursor.description]
 
                 return TablePreviewResponse(
@@ -385,16 +320,7 @@ class SQLiteService:
     # ========== HELPER METHODS ==========
 
     def _get_sqlite_connection(self):
-        """
-        Get SQLite connection using cached file.
-
-        Context manager that:
-        1. Checks if cache exists
-        2. If NO → Download from Firebase to cache
-        3. If YES → Use cached file
-        4. Opens connection to cached file (NO temp file!)
-        5. Closes connection after use (cache file persists)
-        """
+        """Context manager for SQLite connection. Downloads from Firebase if cache missing."""
 
         class SQLiteContextManager:
             def __init__(self, service: 'SQLiteService'):
@@ -413,7 +339,6 @@ class SQLiteService:
                 return self.connection
 
             def __exit__(self, exc_type, exc_val, exc_tb):
-                # Just close connection, DO NOT delete cache file
                 if self.connection:
                     self.connection.close()
 
@@ -421,27 +346,12 @@ class SQLiteService:
 
     def _is_valid_sqlite(self, file_content: bytes) -> bool:
         """Check if file is a valid SQLite database."""
-        # SQLite files start with "SQLite format 3\x00"
         return file_content[:16] == b'SQLite format 3\x00'
 
     def _is_safe_query(self, query: str, allowed_operations: List[str]) -> bool:
-        """
-        Validate query safety and permissions.
-
-        Args:
-            query: SQL query to validate
-            allowed_operations: List of permitted operations (SELECT, INSERT, UPDATE, DELETE)
-
-        Blocks:
-        - Operations not in allowed_operations
-        - DROP, ALTER, CREATE, EXEC, ATTACH, DETACH (always blocked)
-        - Multiple statements (;)
-        - Comments (-- or /* */)
-        """
-        # Remove whitespace and convert to uppercase
+        """Validate query permissions and block dangerous SQL (DDL, multi-statements, comments)."""
         cleaned = query.strip().upper()
 
-        # Determine query type
         query_type = None
         if cleaned.startswith('SELECT'):
             query_type = 'SELECT'
@@ -452,19 +362,16 @@ class SQLiteService:
         elif cleaned.startswith('DELETE'):
             query_type = 'DELETE'
         else:
-            return False  # Unknown query type
+            return False
 
-        # Check if operation is allowed
         if query_type not in allowed_operations:
             return False
 
-        # Always block  DDL keywords
         always_blocked = ['DROP', 'ALTER', 'CREATE', 'EXEC', 'EXECUTE', 'ATTACH', 'DETACH']
         for keyword in always_blocked:
             if keyword in cleaned:
                 return False
 
-        # Block multiple statements
         if ';' in query[:-1]:
             return False
 
@@ -475,35 +382,36 @@ class SQLiteService:
 
     def _is_valid_table_name(self, table_name: str) -> bool:
         """Validate table name to prevent SQL injection."""
-        # Only allow alphanumeric and underscore
         return bool(re.match(r'^[a-zA-Z0-9_]+$', table_name))
 
-    async def generate_sql_agent_prompt(self, llm_service) -> str:
-        """
-        Generate Text-to-SQL agent prompt for current database.
-        """
-
+    def get_cached_db_path(self) -> str:
+        """Get absolute path to cached database file. Downloads if not cached."""
         db_record = self.db_repository.get_current_database()
         if not db_record:
             raise ValueError("No database uploaded")
 
-        # cache
-        db_path = self.CACHE_FILE
-        if not db_path.exists():
-            # Download from  firebase storage
+        if not self.CACHE_FILE.exists():
             self._download_to_cache()
 
-        # prompt generator service
-        prompt_generator = PromptGeneratorService(llm_service)
+        return str(self.CACHE_FILE.absolute())
 
-        # Generate prompt
+    async def generate_sql_agent_prompt(self, llm_service) -> str:
+        """Generate Text-to-SQL agent prompt using LLM and save to database."""
+        db_record = self.db_repository.get_current_database()
+        if not db_record:
+            raise ValueError("No database uploaded")
+
+        db_path = self.CACHE_FILE
+        if not db_path.exists():
+            self._download_to_cache()
+
+        prompt_generator = PromptGeneratorService(llm_service)
         generated_prompt = await prompt_generator.generate_prompt(
             db_path=db_path,
             db_name=db_record.database_name,
             allowed_operations=db_record.allowed_operations
         )
 
-        # Save to database
         self.db_repository.update_sql_agent_prompt(
             db_id=db_record.id,
             prompt=generated_prompt
