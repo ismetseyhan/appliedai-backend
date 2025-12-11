@@ -4,13 +4,16 @@ AI Agents API Endpoints
 from fastapi import APIRouter, Depends, HTTPException
 import time
 
-from app.api.deps import get_sqlite_service, get_llm_service, get_current_user, get_user_preferences_service
+from app.api.deps import get_sqlite_service, get_llm_service, get_current_user, get_user_preferences_service, get_google_search_service
 from app.schemas.text_to_sql import TextToSQLRequest, TextToSQLResponse
+from app.schemas.research import ResearchRequest, ResearchResponse
 from app.schemas.agent_settings import AgentSettingsResponse, QueryCheckerToggleRequest
 from app.services.sqlite_service import SQLiteService
 from app.services.llm_service import LLMService
+from app.services.google_search_service import GoogleSearchService
 from app.services.user_preferences_service import UserPreferencesService
 from app.agents.text_to_sql_agent import TextToSQLAgent
+from app.agents.research_agent import ResearchAgent
 from app.entities.user import User
 
 
@@ -49,6 +52,34 @@ async def text_to_sql(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Text-to-SQL agent failed: {str(e)}")
+
+
+@router.post(
+    "/research",
+    response_model=ResearchResponse,
+    summary="Research questions using web search"
+)
+async def research(
+    request: ResearchRequest,
+    current_user: User = Depends(get_current_user),
+    llm_service: LLMService = Depends(get_llm_service),
+    search_service: GoogleSearchService = Depends(get_google_search_service)
+):
+    """
+    Research questions using Google Custom Search API.
+    Performs multiple web searches and synthesizes answers with references.
+    """
+    start = time.time()
+
+    try:
+        agent = ResearchAgent(llm_service, search_service, current_user.id)
+        response = await agent.query(request.query, request.max_searches)
+        response.execution_time_ms = int((time.time() - start) * 1000)
+        return response
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Research agent failed: {str(e)}")
 
 
 @router.get(
