@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     OPENAI_MODEL_NAME: str = "gpt-4o"  # Default
     OPENAI_BASE_URL: str = "https://api.openai.com/v1"
 
+    # Google Custom Search Configuration
+    GOOGLE_SEARCH_API_KEY: str = ""
+    GOOGLE_SEARCH_ENGINE_ID: str = ""
+    GOOGLE_SEARCH_MAX_RESULTS: int = 10
+
     # Database Configuration
     DB_HOST: str = "localhost"
     DB_PORT: int = 5432

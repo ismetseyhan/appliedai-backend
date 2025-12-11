@@ -9,6 +9,7 @@ from app.services.firebase_storage_service import FirebaseStorageService
 from app.services.document_service import DocumentService
 from app.services.sqlite_service import SQLiteService
 from app.services.llm_service import LLMService
+from app.services.google_search_service import GoogleSearchService
 from app.repositories.sqlite_database_repository import SQLiteDatabaseRepository
 from app.repositories.user_preferences_repository import UserPreferencesRepository
 from app.services.user_preferences_service import UserPreferencesService
@@ -83,3 +84,12 @@ def get_user_preferences_service(db: Session = Depends(get_db)) -> UserPreferenc
     """Dependency: Get User Preferences Service instance."""
     repository = UserPreferencesRepository(db)
     return UserPreferencesService(repository)
+
+
+def get_google_search_service() -> GoogleSearchService:
+    """Dependency: Get Google Search Service instance."""
+    return GoogleSearchService(
+        api_key=settings.GOOGLE_SEARCH_API_KEY,
+        engine_id=settings.GOOGLE_SEARCH_ENGINE_ID,
+        max_results=settings.GOOGLE_SEARCH_MAX_RESULTS
+    )
