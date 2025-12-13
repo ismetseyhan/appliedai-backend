@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from app.core.config import settings
 from app.core.security import initialize_firebase
-from app.api.v1 import auth, documents, sqlite, llm, agents
+from app.api.v1 import auth, documents, sqlite, llm, agents, templates
 
 # Initialize Firebase
 initialize_firebase()
@@ -93,6 +93,12 @@ api_router.include_router(
     agents.router,
     prefix="/agents",
     tags=["AI Agents"]
+)
+# templates router
+api_router.include_router(
+    templates.router,
+    prefix="/templates",
+    tags=["Templates"]
 )
 
 # API v1 router

@@ -112,3 +112,103 @@ Available References:
 IMPORTANT: In your response, include the reference_id of each source you used to formulate your answer in the cited_reference_ids field.
 
 Provide your answer and list the reference IDs you cited."""
+
+
+# ============================================================================
+# PDF Parsing Template Generation Prompt
+# ============================================================================
+
+TEMPLATE_GENERATION_PROMPT = """You will be given raw text extracted from a record-based PDF. The PDF contains repeated records with labeled fields in a "Key: Value" style (values may span multiple lines).
+
+Your task: output ONLY a JSON template describing how to split records and extract fields, and identify the best unique identifier field.
+
+Return ONLY valid JSON. No markdown, no comments, no extra text.
+
+Output JSON MUST be an object with EXACTLY these top-level keys:
+- record_start
+- id_key
+- fields
+
+Schema (rules about required/optional properties):
+1) record_start: {{ "pattern": "REGEX", "flags": [..] }}
+   - flags is a list containing only: MULTILINE, DOTALL, IGNORECASE, UNICODE
+
+2) id_key: "snake_case_string" OR null
+
+3) fields: array of field objects. Each field object MUST include:
+   - key (snake_case)
+   - labels (array of 1+ regex prefix strings)
+   - flags (list; usually ["MULTILINE"])
+   - type ("str" | "int" | "float" | "list")
+   - required (true/false)
+   - normalize_whitespace (true/false)
+
+   Field object MAY include (ONLY when type="list"):
+   - split (string, e.g. ",")
+   - item_strip (true)
+
+Rules:
+1) record_start.pattern matches the start of each record (usually the first label + an ID/unique token). Use ^ + MULTILINE when appropriate.
+2) Each labels entry MUST be a regex prefix matching the full label including ":" and trailing whitespace.
+   Example JSON regex string: "^Movie Name:\\\\s*"  (this is JSON; it contains two backslashes)
+3) The parser takes a field value as the text AFTER its label until the next field label (or end of record).
+4) keys must be snake_case and match semantic meaning (use plural for lists: "genres", "actors", "tags").
+5) Infer types: int, float, list (comma-separated), otherwise str.
+6) If type="list", include split="," and item_strip=true. Otherwise omit split/item_strip entirely.
+7) Set normalize_whitespace=true by default for all fields unless the sample clearly requires preserving line breaks.
+8) Choose id_key as the field that best uniquely identifies records:
+   - Prefer keys/labels containing "id", "no", "number", "code"
+   - Prefer type=int
+   - If none exists, set id_key to null
+9) Use only flags you truly need (usually ["MULTILINE"]; add IGNORECASE only if casing varies).
+
+Expected output example (illustrative only; your output must match the given sample text):
+{{
+  "record_start": {{
+    "pattern": "^Movie ID:\\\\s*\\\\d+",
+    "flags": ["MULTILINE"]
+  }},
+  "id_key": "movie_id",
+  "fields": [
+    {{
+      "key": "movie_id",
+      "labels": ["^Movie ID:\\\\s*"],
+      "flags": ["MULTILINE"],
+      "type": "int",
+      "required": true,
+      "normalize_whitespace": true
+    }},
+    {{
+      "key": "movie_name",
+      "labels": ["^Movie Name:\\\\s*", "^Title:\\\\s*"],
+      "flags": ["MULTILINE"],
+      "type": "str",
+      "required": true,
+      "normalize_whitespace": true
+    }},
+    {{
+      "key": "description",
+      "labels": ["^Description:\\\\s*", "^Summary:\\\\s*"],
+      "flags": ["MULTILINE"],
+      "type": "str",
+      "required": true,
+      "normalize_whitespace": true
+    }},
+    {{
+      "key": "genres",
+      "labels": ["^Genre:\\\\s*", "^Genres:\\\\s*"],
+      "flags": ["MULTILINE"],
+      "type": "list",
+      "required": true,
+      "normalize_whitespace": true,
+      "split": ",",
+      "item_strip": true
+    }}
+  ]
+}}
+
+Sample text:
+---BEGIN SAMPLE---
+{sample_text}
+---END SAMPLE---
+"""
