@@ -70,3 +70,14 @@ class LLMService:
     def get_async_client(self) -> AsyncOpenAI:
         """Get asynchronous OpenAI client"""
         return self.async_client
+
+    def get_structured_llm(self, output_schema: type):
+        """Get LLM with structured output -json"""
+        from langchain_openai import ChatOpenAI
+
+        llm = ChatOpenAI(
+            model=self.model_name,
+            api_key=self.api_key,
+            temperature=0.0
+        )
+        return llm.with_structured_output(output_schema)

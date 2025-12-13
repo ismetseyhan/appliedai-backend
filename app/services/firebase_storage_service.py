@@ -58,12 +58,6 @@ class FirebaseStorageService:
     def delete_file(self, storage_path: str) -> bool:
         """
         Delete file from Firebase Storage
-
-        Args:
-            storage_path: gs:// URL or path
-
-        Returns:
-            True if deleted, False if error
         """
         try:
             if storage_path.startswith('gs://'):
@@ -93,13 +87,6 @@ class FirebaseStorageService:
     ) -> Optional[str]:
         """
         Get signed download URL for private access
-
-        Args:
-            storage_path: gs:// URL or path
-            expiration_hours: How long the URL should be valid (default 1 hour)
-
-        Returns:
-            Signed URL or None if error
         """
         try:
             if storage_path.startswith('gs://'):
@@ -127,15 +114,6 @@ class FirebaseStorageService:
             return None
 
     def file_exists(self, storage_path: str) -> bool:
-        """
-        Check if file exists in storage
-
-        Args:
-            storage_path: gs:// URL or path
-
-        Returns:
-            True if exists, False otherwise
-        """
         try:
             if storage_path.startswith('gs://'):
                 parts = storage_path.replace('gs://', '').split('/', 1)
@@ -151,3 +129,25 @@ class FirebaseStorageService:
         except Exception as e:
             print(f"Error checking file existence: {e}")
             return False
+
+    def download_file(self, storage_path: str) -> Optional[bytes]:
+
+        try:
+            if storage_path.startswith('gs://'):
+                parts = storage_path.replace('gs://', '').split('/', 1)
+                if len(parts) == 2:
+                    path = parts[1]
+                else:
+                    return None
+            else:
+                path = storage_path
+
+            blob = self.bucket.blob(path)
+
+            if not blob.exists():
+                return None
+
+            return blob.download_as_bytes()
+        except Exception as e:
+            print(f"Error downloading file: {e}")
+            return None
