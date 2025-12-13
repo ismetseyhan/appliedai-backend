@@ -13,6 +13,8 @@ from app.services.google_search_service import GoogleSearchService
 from app.repositories.sqlite_database_repository import SQLiteDatabaseRepository
 from app.repositories.user_preferences_repository import UserPreferencesRepository
 from app.services.user_preferences_service import UserPreferencesService
+from app.services.template_service import TemplateService
+from app.services.llm_template_generator_service import LLMTemplateGeneratorService
 
 # HTTPBearer security scheme for Swagger UI
 security = HTTPBearer(
@@ -92,4 +94,18 @@ def get_google_search_service() -> GoogleSearchService:
         api_key=settings.GOOGLE_SEARCH_API_KEY,
         engine_id=settings.GOOGLE_SEARCH_ENGINE_ID,
         max_results=settings.GOOGLE_SEARCH_MAX_RESULTS
+    )
+
+
+def get_template_service(
+    db: Session = Depends(get_db),
+    storage_service: FirebaseStorageService = Depends(get_storage_service),
+    llm_service: LLMService = Depends(get_llm_service)
+) -> TemplateService:
+    """Dependency: Get Template Service instance."""
+    llm_generator = LLMTemplateGeneratorService(llm_service)
+    return TemplateService(
+        db=db,
+        storage_service=storage_service,
+        llm_generator_service=llm_generator
     )
