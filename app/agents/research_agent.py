@@ -179,6 +179,7 @@ class ResearchAgent:
     def _get_tools(self) -> List:
         @tool
         def web_search(query: str) -> str:
+            """Search the web using Google Custom Search API to find relevant information."""
             return "Tool executed via bind_tools"
 
         return [web_search]
