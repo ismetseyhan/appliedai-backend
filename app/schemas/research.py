@@ -3,7 +3,7 @@ from typing import List
 
 
 class ResearchRequest(BaseModel):
-    query: str = Field(..., min_length=1, description="Research question")
+    query: str = Field(min_length=1, description="Research question")
     max_searches: int = Field(3, ge=1, le=5, description="Maximum number of web searches")
 
 
