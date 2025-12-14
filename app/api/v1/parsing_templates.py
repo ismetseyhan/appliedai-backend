@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, status
 from app.api.deps import get_current_user, get_template_service
 from app.entities.user import User
-from app.schemas.template import (
+from app.schemas.parsing_template import (
     TemplateCreateRequest, TemplateUpdateRequest, TemplateResponse, TemplateListResponse,
     GenerateTemplateRequest, TemplateGenerationResponse,
     TestParseRequest, TestParseResponse

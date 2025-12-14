@@ -10,8 +10,8 @@ def generate_uuid():
     return str(uuid.uuid4())
 
 
-class Template(Base):
-    __tablename__ = "templates"
+class ParsingTemplate(Base):
+    __tablename__ = "parsing_templates"
 
     id = Column(String, primary_key=True, default=generate_uuid)
     user_id = Column(String, ForeignKey('users.id'), nullable=False, index=True)
@@ -27,11 +27,11 @@ class Template(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    user = relationship("User", backref="templates")
+    user = relationship("User", backref="parsing_templates")
 
     __table_args__ = (
         UniqueConstraint('user_id', 'template_name', name='uq_user_template_name'),
     )
 
     def __repr__(self):
-        return f"<Template {self.template_name} by {self.user_id}>"
+        return f"<ParsingTemplate {self.template_name} by {self.user_id}>"
