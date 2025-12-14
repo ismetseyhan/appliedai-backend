@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     # OpenAI Configuration
     OPENAI_API_KEY: str  # env
     OPENAI_MODEL_NAME: str = "gpt-4o"  # Default
+    OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"  # 1536 dims
     OPENAI_BASE_URL: str = "https://api.openai.com/v1"
 
     # Google Custom Search Configuration

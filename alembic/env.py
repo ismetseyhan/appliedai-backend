@@ -12,8 +12,9 @@ from app.core.database import Base
 # Import all entities to ensure they are registered with Base.metadata
 from app.entities.user import User  # noqa: F401
 from app.entities.document import Document  # noqa: F401
-from app.entities.template import Template  # noqa: F401
-from app.entities.document_record import DocumentRecord  # noqa: F401
+from app.entities.parsing_template import ParsingTemplate  # noqa: F401
+from app.entities.document_chunking import DocumentChunking  # noqa: F401
+from app.entities.document_chunk import DocumentChunk  # noqa: F401
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

@@ -81,3 +81,12 @@ class LLMService:
             temperature=0.0
         )
         return llm.with_structured_output(output_schema)
+
+    async def create_embedding(self, text: str, model: Optional[str] = None) -> list[float]:
+        """Create embedding vector from text"""
+        embedding_model = model or settings.OPENAI_EMBEDDING_MODEL
+        response = await self.async_client.embeddings.create(
+            input=text,
+            model=embedding_model
+        )
+        return response.data[0].embedding

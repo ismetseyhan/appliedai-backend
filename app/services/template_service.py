@@ -2,14 +2,14 @@ from typing import Optional
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.entities.template import Template
+from app.entities.parsing_template import ParsingTemplate
 from app.entities.user import User
-from app.schemas.template import (
+from app.schemas.parsing_template import (
     TemplateCreateRequest, TemplateUpdateRequest, TemplateResponse, TemplateListResponse,
     GenerateTemplateRequest, TemplateGenerationResponse,
     MinimalTemplateResponse, TestParseRequest, TestParseResponse
 )
-from app.repositories.template_repository import TemplateRepository
+from app.repositories.parsing_template_repository import ParsingTemplateRepository
 from app.repositories.document_repository import DocumentRepository
 from app.services.firebase_storage_service import FirebaseStorageService
 from app.services.pdf_extraction_service import PDFExtractionService
@@ -28,7 +28,7 @@ class TemplateService:
         self.db = db
         self.storage_service = storage_service
         self.llm_generator = llm_generator_service
-        self.template_repo = TemplateRepository(db)
+        self.template_repo = ParsingTemplateRepository(db)
         self.document_repo = DocumentRepository(db)
         self.pdf_extractor = PDFExtractionService()
         self.parser = TemplateParserService()
@@ -260,7 +260,7 @@ class TemplateService:
                 detail=f"Template '{request.template_name}' already exists"
             )
 
-        template = Template(
+        template = ParsingTemplate(
             user_id=current_user.id,
             template_name=request.template_name,
             description=request.description,

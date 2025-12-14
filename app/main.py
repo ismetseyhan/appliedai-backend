@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from app.core.config import settings
 from app.core.security import initialize_firebase
-from app.api.v1 import auth, documents, sqlite, llm, agents, templates
+from app.api.v1 import auth, documents, sqlite, llm, agents, parsing_templates, document_chunking
 
 # Initialize Firebase
 initialize_firebase()
@@ -94,11 +94,17 @@ api_router.include_router(
     prefix="/agents",
     tags=["AI Agents"]
 )
-# templates router
+# parsing templates router
 api_router.include_router(
-    templates.router,
-    prefix="/templates",
-    tags=["Templates"]
+    parsing_templates.router,
+    prefix="/document-parsing",
+    tags=["Document Parsing Templates"]
+)
+# document_chunking router
+api_router.include_router(
+    document_chunking.router,
+    prefix="/document-chunking",
+    tags=["Document Chunking"]
 )
 
 # API v1 router
