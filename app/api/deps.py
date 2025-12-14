@@ -15,6 +15,8 @@ from app.repositories.user_preferences_repository import UserPreferencesReposito
 from app.services.user_preferences_service import UserPreferencesService
 from app.services.template_service import TemplateService
 from app.services.llm_template_generator_service import LLMTemplateGeneratorService
+from app.services.chunking_processor_service import ChunkingProcessorService
+from app.services.document_chunking_service import DocumentChunkingService
 
 # HTTPBearer security scheme for Swagger UI
 security = HTTPBearer(
@@ -109,3 +111,20 @@ def get_template_service(
         storage_service=storage_service,
         llm_generator_service=llm_generator
     )
+
+
+def get_chunking_service(
+    db: Session = Depends(get_db),
+    storage_service: FirebaseStorageService = Depends(get_storage_service),
+    llm_service: LLMService = Depends(get_llm_service)
+) -> ChunkingProcessorService:
+    """Dependency: Get Chunking Service instance."""
+    return ChunkingProcessorService(db=db, storage_service=storage_service, llm_service=llm_service)
+
+
+def get_document_chunking_service(
+    db: Session = Depends(get_db),
+    chunking_processor: ChunkingProcessorService = Depends(get_chunking_service)
+) -> DocumentChunkingService:
+    """Dependency: Get Document Chunking Service instance."""
+    return DocumentChunkingService(db=db, chunking_processor=chunking_processor)
