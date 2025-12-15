@@ -1,8 +1,7 @@
 from typing import Optional
 from sqlalchemy.orm import Session
-from sqlalchemy import or_, desc
 from app.repositories.user_preferences_repository import UserPreferencesRepository
-from app.entities.document_chunking import DocumentChunking
+from app.repositories.document_chunking_repository import DocumentChunkingRepository
 
 
 class UserPreferencesService:
@@ -15,8 +14,9 @@ class UserPreferencesService:
         QUERY_CHECKER_ENABLED: "true",
     }
 
-    def __init__(self, repository: UserPreferencesRepository):
-        self.repository = repository
+    def __init__(self, db: Session):
+        self.repository = UserPreferencesRepository(db)
+        self.chunking_repository = DocumentChunkingRepository(db)
 
     def get_query_checker_enabled(self, user_id: str) -> bool:
         preference = self.repository.get_preference(user_id, self.QUERY_CHECKER_ENABLED)
@@ -49,34 +49,21 @@ class UserPreferencesService:
             preference_value=document_chunking_id
         )
 
-    def get_or_auto_select_rag_data(self, user_id: str, db: Session) -> Optional[str]:
+    def get_or_auto_select_rag_data(self, user_id: str) -> Optional[str]:
         """
         Get active RAG data. If not set, auto-select first available is_active=true record.
         """
         active_id = self.get_active_rag_data(user_id)
         if active_id:
             # Validate: chunks exist + prompt exists + user has access
-            chunk_config = db.query(DocumentChunking).filter(
-                DocumentChunking.id == active_id,
-                DocumentChunking.is_active == True
-            ).first()
-
-            if chunk_config:
-                if chunk_config.user_id == user_id or chunk_config.is_public:
-                    return active_id
-
-        # find first available is_active=true
-        chunk_config = db.query(DocumentChunking).filter(
-            DocumentChunking.is_active == True,
-            or_(
-                DocumentChunking.user_id == user_id,
-                DocumentChunking.is_public == True
+            chunk_config = self.chunking_repository.get_by_id_if_active_and_accessible(
+                active_id, user_id
             )
-        ).order_by(
-            # Prioritize own records
-            desc(DocumentChunking.user_id == user_id),
-            DocumentChunking.created_at.desc()
-        ).first()
+            if chunk_config:
+                return active_id
+
+        # Find first available is_active=true chunking
+        chunk_config = self.chunking_repository.get_first_active_accessible(user_id)
 
         if chunk_config:
             # Save to preferences

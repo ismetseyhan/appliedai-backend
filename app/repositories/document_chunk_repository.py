@@ -16,15 +16,20 @@ class DocumentChunkRepository:
 
     def bulk_create(self, chunks: List[DocumentChunk]) -> List[DocumentChunk]:
         self.db.add_all(chunks)
+        self.db.flush()
         self.db.commit()
-        for chunk in chunks:
-            self.db.refresh(chunk)
         return chunks
 
-    def get_by_document_chunking_id(self, document_chunking_id: str) -> list[type[DocumentChunk]]:
-        return self.db.query(DocumentChunk).filter(
+    def get_by_document_chunking_id(self, document_chunking_id: str, limit: Optional[int] = None) -> List[DocumentChunk]:
+        """Get chunks by chunking ID, optionally limited."""
+        query = self.db.query(DocumentChunk).filter(
             DocumentChunk.document_chunking_id == document_chunking_id
-        ).order_by(DocumentChunk.record_index).all()
+        ).order_by(DocumentChunk.record_index)
+
+        if limit:
+            query = query.limit(limit)
+
+        return query.all()
 
     def get_by_id(self, chunk_id: str) -> Optional[DocumentChunk]:
         return self.db.query(DocumentChunk).filter(DocumentChunk.id == chunk_id).first()
@@ -207,3 +212,27 @@ class DocumentChunkRepository:
                     )
 
         return query
+
+    def get_metadata_statistics(
+        self,
+        document_chunking_id: str,
+        numeric_fields: List[str]
+    ) -> Dict[str, Dict[str, Any]]:
+        """Calculate min/max statistics for numeric metadata fields."""
+        stats = {}
+
+        for field in numeric_fields:
+            result = self.db.query(
+                func.min((DocumentChunk.chunk_metadata[field].cast(Integer))).label('min_val'),
+                func.max((DocumentChunk.chunk_metadata[field].cast(Integer))).label('max_val')
+            ).filter(
+                DocumentChunk.document_chunking_id == document_chunking_id
+            ).first()
+
+            if result:
+                stats[field] = {
+                    "min": result.min_val,
+                    "max": result.max_val
+                }
+
+        return stats

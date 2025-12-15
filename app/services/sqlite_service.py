@@ -12,6 +12,7 @@ import sqlite3
 from pathlib import Path
 from typing import Optional, List
 from fastapi import HTTPException, status, UploadFile
+from sqlalchemy.orm import Session
 
 from app.services.firebase_storage_service import FirebaseStorageService
 from app.services.prompt_generator_service import PromptGeneratorService
@@ -32,9 +33,9 @@ class SQLiteService:
     CACHE_DIR = Path(__file__).parent.parent / ".cache" / "sqlite"  # Local cache directory
     CACHE_FILE = CACHE_DIR / "current.db"  # Cached database file
 
-    def __init__(self, storage_service: FirebaseStorageService, db_repository: SQLiteDatabaseRepository):
+    def __init__(self, storage_service: FirebaseStorageService, db: Session):
         self.storage_service = storage_service
-        self.db_repository = db_repository
+        self.db_repository = SQLiteDatabaseRepository(db)
         self._ensure_cache_dir()
 
     def _ensure_cache_dir(self):
@@ -394,6 +395,21 @@ class SQLiteService:
             self._download_to_cache()
 
         return str(self.CACHE_FILE.absolute())
+
+    def get_current_database_metadata(self):
+        """Get current database metadata record."""
+        return self.db_repository.get_current_database()
+
+    def update_agent_prompt(self, prompt: str) -> None:
+        """Update SQL agent prompt for current database."""
+        db_record = self.db_repository.get_current_database()
+        if not db_record:
+            raise ValueError("No database uploaded")
+
+        self.db_repository.update_sql_agent_prompt(
+            db_id=db_record.id,
+            prompt=prompt
+        )
 
     async def generate_sql_agent_prompt(self, llm_service) -> str:
         """Generate Text-to-SQL agent prompt using LLM and save to database."""

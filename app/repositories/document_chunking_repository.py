@@ -36,7 +36,7 @@ class DocumentChunkingRepository:
             DocumentChunking.user_id == user_id
         ).first()
 
-    def get_accessible_chunkings(self, user_id: str, load_relations: bool = False) -> list[type[DocumentChunking]]:
+    def get_accessible_chunkings(self, user_id: str, load_relations: bool = False) -> List[DocumentChunking]:
         """Get user's chunkings (own + public)."""
         query = self.db.query(DocumentChunking)
         if load_relations:
@@ -96,3 +96,28 @@ class DocumentChunkingRepository:
         """Delete chunking (cascades to chunks)."""
         self.db.delete(doc_chunking)
         self.db.commit()
+
+    def get_by_id_if_active_and_accessible(self, chunking_id: str, user_id: str) -> Optional[DocumentChunking]:
+        """Get chunking by id if active and accessible by user (own or public)."""
+        return self.db.query(DocumentChunking).filter(
+            DocumentChunking.id == chunking_id,
+            DocumentChunking.is_active == True,
+            or_(
+                DocumentChunking.user_id == user_id,
+                DocumentChunking.is_public == True
+            )
+        ).first()
+
+    def get_first_active_accessible(self, user_id: str) -> Optional[DocumentChunking]:
+        """Get first active chunking accessible by user, prioritizing own records."""
+        from sqlalchemy import desc
+        return self.db.query(DocumentChunking).filter(
+            DocumentChunking.is_active == True,
+            or_(
+                DocumentChunking.user_id == user_id,
+                DocumentChunking.is_public == True
+            )
+        ).order_by(
+            desc(DocumentChunking.user_id == user_id),
+            DocumentChunking.created_at.desc()
+        ).first()

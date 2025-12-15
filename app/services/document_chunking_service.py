@@ -17,6 +17,7 @@ from app.schemas.document_chunking import (
 from app.repositories.document_chunking_repository import DocumentChunkingRepository
 from app.repositories.document_repository import DocumentRepository
 from app.repositories.parsing_template_repository import ParsingTemplateRepository
+from app.repositories.document_chunk_repository import DocumentChunkRepository
 from app.entities.document_chunk import DocumentChunk
 from app.services.chunking_processor_service import ChunkingProcessorService
 
@@ -27,6 +28,7 @@ class DocumentChunkingService:
         self.db = db
         self.doc_template_repo = DocumentChunkingRepository(db)
         self.document_repo = DocumentRepository(db)
+        self.chunk_repo = DocumentChunkRepository(db)
         self.template_repo = ParsingTemplateRepository(db)
         self.chunking_processor = chunking_processor
 
@@ -110,9 +112,10 @@ class DocumentChunkingService:
         for doc_template, chunk_count, document_name, template_name, uploader_name in results:
             sample_chunk = None
             if chunk_count and chunk_count > 0:
-                chunk = self.db.query(DocumentChunk).filter(
-                    DocumentChunk.document_chunking_id == doc_template.id
-                ).order_by(DocumentChunk.record_index).first()
+                chunks = self.chunk_repo.get_by_document_chunking_id(
+                    doc_template.id, limit=1
+                )
+                chunk = chunks[0] if chunks else None
 
                 if chunk:
                     sample_chunk = {

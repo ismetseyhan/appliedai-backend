@@ -134,7 +134,7 @@ async def generate_agent_prompt(
     """Generate Text-to-SQL agent prompt using LLM"""
     try:
         prompt = await sqlite_service.generate_sql_agent_prompt(llm_service)
-        db_record = sqlite_service.db_repository.get_current_database()
+        db_record = sqlite_service.get_current_database_metadata()
         if not db_record:
             raise HTTPException(status_code=404, detail="No database uploaded")
         return PromptGenerationResponse(
@@ -159,7 +159,7 @@ async def get_agent_prompt(
 ):
     """Get current Text-to-SQL agent prompt"""
     try:
-        db_record = sqlite_service.db_repository.get_current_database()
+        db_record = sqlite_service.get_current_database_metadata()
         if not db_record:
             raise HTTPException(status_code=404, detail="No database uploaded")
         if not db_record.sql_agent_prompt:
@@ -187,17 +187,12 @@ async def update_agent_prompt(
 ):
     """Update Text-to-SQL agent prompt with user edits"""
     try:
-        db_record = sqlite_service.db_repository.get_current_database()
-        if not db_record:
-            raise HTTPException(status_code=404, detail="No database uploaded")
-        updated_record = sqlite_service.db_repository.update_sql_agent_prompt(
-            db_id=db_record.id,
-            prompt=request.prompt
-        )
+        sqlite_service.update_agent_prompt(request.prompt)
+        db_record = sqlite_service.get_current_database_metadata()
         return PromptGenerationResponse(
-            prompt=updated_record.sql_agent_prompt,
-            database_name=updated_record.database_name,
-            generated_at=updated_record.updated_at
+            prompt=db_record.sql_agent_prompt,
+            database_name=db_record.database_name,
+            generated_at=db_record.updated_at
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
