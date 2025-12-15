@@ -17,6 +17,7 @@ from app.services.template_service import TemplateService
 from app.services.llm_template_generator_service import LLMTemplateGeneratorService
 from app.services.chunking_processor_service import ChunkingProcessorService
 from app.services.document_chunking_service import DocumentChunkingService
+from app.services.rag_service import RAGService
 
 # HTTPBearer security scheme for Swagger UI
 security = HTTPBearer(
@@ -128,3 +129,16 @@ def get_document_chunking_service(
 ) -> DocumentChunkingService:
     """Dependency: Get Document Chunking Service instance."""
     return DocumentChunkingService(db=db, chunking_processor=chunking_processor)
+
+
+def get_rag_service(
+    db: Session = Depends(get_db),
+    llm_service: LLMService = Depends(get_llm_service),
+    preferences_service: UserPreferencesService = Depends(get_user_preferences_service)
+) -> RAGService:
+    """Dependency: Get RAG Service instance."""
+    return RAGService(
+        db=db,
+        llm_service=llm_service,
+        preferences_service=preferences_service
+    )

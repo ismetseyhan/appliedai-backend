@@ -19,7 +19,7 @@ class TemplateParserService:
         return re.compile(pattern, flags=flags)
 
     @staticmethod
-    def cleanup_text(text: str, cleanup: Dict[str, Any]) -> str:
+    def cleanup_text(text: str, cleanup: Dict[str, Any], record_start_pattern: Optional[str] = None) -> str:
         text = text.replace("\r\n", "\n").replace("\r", "\n")
 
         for rep in cleanup.get("replace", []) or []:
@@ -42,7 +42,33 @@ class TemplateParserService:
         text = "\n".join(out_lines)
 
         if cleanup.get("join_hyphenated_words", False):
-            text = re.sub(r"(\w)-\n(\w)", r"\1\2", text)
+            #  Don't join if next line starts a new record
+            if record_start_pattern:
+                #  to check boundaries
+                try:
+                    record_start_rx = re.compile(record_start_pattern, re.MULTILINE)
+
+                    # Custom replacement function that checks record boundaries
+                    def smart_join(match):
+                        pos_second_char = match.start(2)
+                        text_from_second_char = text[pos_second_char:]
+
+                        # Check if text starting from second character matches record pattern
+                        if record_start_rx.match(text_from_second_char):
+                            # Don't join - this is a record boundary
+                            # Keep "word-\nRecord" as is
+                            return match.group(0)
+
+                        # Safe to join - it's a hyphenated word
+                        return match.group(1) + match.group(2)
+
+                    text = re.sub(r"(\w)-\n(\w)", smart_join, text)
+                except re.error:
+                    # Fallback to simple join if pattern compilation fails
+                    text = re.sub(r"(\w)-\n(\w)", r"\1\2", text)
+            else:
+                # No record pattern provided, use simple join
+                text = re.sub(r"(\w)-\n(\w)", r"\1\2", text)
 
         if cleanup.get("collapse_whitespace", False):
             text = re.sub(r"[ \t]+", " ", text)
@@ -136,13 +162,14 @@ class TemplateParserService:
 
     @staticmethod
     def parse_pdf(text: str, template: Dict[str, Any]) -> Any:
-        cleanup_cfg = template.get("pdf_text_cleanup", {}) or {}
-        if cleanup_cfg:
-            text = TemplateParserService.cleanup_text(text, cleanup_cfg)
-
         rec_cfg = template.get("record", {})
         start_pat = rec_cfg["start"]["pattern"]
         start_flags = rec_cfg["start"].get("flags", [])
+
+        cleanup_cfg = template.get("pdf_text_cleanup", {}) or {}
+        if cleanup_cfg:
+            # Pass record start pattern for smart hyphen joining
+            text = TemplateParserService.cleanup_text(text, cleanup_cfg, record_start_pattern=start_pat)
         fields = template["fields"]
         output_cfg = template.get("output", {"as_dict": False, "id_field": "id"})
         skip_missing = bool(output_cfg.get("skip_records_missing_required", False))
