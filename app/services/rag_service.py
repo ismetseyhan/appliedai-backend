@@ -19,15 +19,30 @@ class RAGService:
             llm_service: LLMService,
             preferences_service: UserPreferencesService
     ):
-        self.db = db
         self.llm_service = llm_service
         self.preferences_service = preferences_service
         self.chunk_repository = DocumentChunkRepository(db)
         self.chunking_repository = DocumentChunkingRepository(db)
 
+    def create_rag_agent(self, user_id: str) -> Optional[RAGAgent]:
+        active_id = self.preferences_service.get_or_auto_select_rag_data(user_id)
+        if not active_id:
+            return None
+
+        doc_chunking = self.chunking_repository.get_by_id(active_id)
+        if not doc_chunking or not doc_chunking.agent_prompt:
+            return None
+
+        return RAGAgent(
+            chunk_repository=self.chunk_repository,
+            llm_service=self.llm_service,
+            document_chunking_id=active_id,
+            agent_prompt=doc_chunking.agent_prompt
+        )
+
     async def query(self, user_id: str, request: RAGRequest) -> RAGResponse:
         """Execute RAG query with validation and agent initialization."""
-        active_id = self.preferences_service.get_or_auto_select_rag_data(user_id, self.db)
+        active_id = self.preferences_service.get_or_auto_select_rag_data(user_id)
         if not active_id:
             raise HTTPException(
                 status_code=404,

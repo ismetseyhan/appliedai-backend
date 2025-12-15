@@ -20,7 +20,6 @@ class DocumentService:
         db: Session,
         storage_service: FirebaseStorageService
     ):
-        self.db = db
         self.storage_service = storage_service
         self.repository = DocumentRepository(db)
 

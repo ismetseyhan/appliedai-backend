@@ -25,7 +25,6 @@ class TemplateService:
             storage_service: FirebaseStorageService,
             llm_generator_service: LLMTemplateGeneratorService
     ):
-        self.db = db
         self.storage_service = storage_service
         self.llm_generator = llm_generator_service
         self.template_repo = ParsingTemplateRepository(db)
