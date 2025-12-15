@@ -177,13 +177,12 @@ class TextToSQLAgent:
 
         # Synthesize natural language answer if queries executed
         if self.sql_count > 0 and not final_answer:
-            synthesis_prompt = f"""Based on the query results, provide a clear natural language answer.
+            from app.prompts.prompt_manager import SQL_ANSWER_SYNTHESIS_PROMPT
 
-Original Question: {user_query}
-
-Results: {json.dumps(self.results)}
-
-Provide a concise, helpful answer:"""
+            synthesis_prompt = SQL_ANSWER_SYNTHESIS_PROMPT.format(
+                user_query=user_query,
+                results=json.dumps(self.results)
+            )
 
             final_response = await llm.ainvoke(synthesis_prompt)
             final_answer = final_response.content
