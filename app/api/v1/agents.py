@@ -4,14 +4,23 @@ AI Agents API Endpoints
 from fastapi import APIRouter, Depends, HTTPException
 import time
 
-from app.api.deps import get_sqlite_service, get_llm_service, get_current_user, get_user_preferences_service, get_google_search_service
+from app.api.deps import (
+    get_sqlite_service,
+    get_llm_service,
+    get_current_user,
+    get_user_preferences_service,
+    get_google_search_service,
+    get_rag_service
+)
 from app.schemas.text_to_sql import TextToSQLRequest, TextToSQLResponse
 from app.schemas.research import ResearchRequest, ResearchResponse
 from app.schemas.agent_settings import AgentSettingsResponse, QueryCheckerToggleRequest
+from app.schemas.rag import RAGRequest, RAGResponse
 from app.services.sqlite_service import SQLiteService
 from app.services.llm_service import LLMService
 from app.services.google_search_service import GoogleSearchService
 from app.services.user_preferences_service import UserPreferencesService
+from app.services.rag_service import RAGService
 from app.agents.text_to_sql_agent import TextToSQLAgent
 from app.agents.research_agent import ResearchAgent
 from app.entities.user import User
@@ -114,3 +123,30 @@ async def toggle_query_checker(
     return AgentSettingsResponse(
         query_checker_enabled=prefs_dict[UserPreferencesService.QUERY_CHECKER_ENABLED].lower() == "true"
     )
+
+
+@router.post(
+    "/rag",
+    response_model=RAGResponse,
+    summary="RAG query over document chunks"
+)
+async def rag_query(
+    request: RAGRequest,
+    current_user: User = Depends(get_current_user),
+    service: RAGService = Depends(get_rag_service)
+):
+    """
+    Query RAG agent for semantic search over document chunks.
+    Uses active RAG data source from user preferences.
+    """
+    start = time.time()
+
+    try:
+        response = await service.query(current_user.id, request)
+        response.execution_time_ms = int((time.time() - start) * 1000)
+        return response
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"RAG agent failed: {str(e)}")
