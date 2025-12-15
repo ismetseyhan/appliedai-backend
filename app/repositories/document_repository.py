@@ -33,7 +33,7 @@ class DocumentRepository:
         self,
         user_id: str,
         load_user: bool = False
-    ) -> list[type[Document]]:
+    ) -> List[Document]:
         """
         Get all documents accessible to a user.
         Returns user's own documents + all public documents.
@@ -60,13 +60,13 @@ class DocumentRepository:
         self.db.delete(document)
         self.db.commit()
 
-    def get_by_user_id(self, user_id: str) -> list[type[Document]]:
+    def get_by_user_id(self, user_id: str) -> List[Document]:
         """Get all documents owned by a user."""
         return self.db.query(Document).filter(
             Document.user_id == user_id
         ).order_by(Document.created_at.desc()).all()
 
-    def get_public_documents(self) -> list[type[Document]]:
+    def get_public_documents(self) -> List[Document]:
         """Get all public documents."""
         return self.db.query(Document).filter(
             Document.is_public == True
