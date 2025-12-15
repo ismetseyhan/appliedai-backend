@@ -1,11 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.orm import Session
-from app.core.database import get_db
 from app.core.security import verify_firebase_token
 from app.entities.user import User
 from app.schemas.user import UserResponse
-from app.api.deps import get_current_user, security
+from app.services.user_service import UserService
+from app.api.deps import get_current_user, get_user_service, security
 
 router = APIRouter()
 
@@ -23,7 +22,7 @@ router = APIRouter()
 )
 async def register_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db)
+    user_service: UserService = Depends(get_user_service)
 ):
     """
     Register user in backend database after Firebase registration
@@ -50,22 +49,18 @@ async def register_user(
     name = decoded_token.get("name")
 
     # Check if user already exists
-    existing_user = db.query(User).filter(User.id == firebase_uid).first()
-    if existing_user:
+    if user_service.user_exists(firebase_uid):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="User already registered"
         )
 
     # Create user
-    new_user = User(
-        id=firebase_uid,
+    new_user = user_service.create_user(
+        firebase_uid=firebase_uid,
         email=email,
         display_name=name
     )
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
 
     return new_user
 
