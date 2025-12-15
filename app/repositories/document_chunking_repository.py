@@ -30,14 +30,14 @@ class DocumentChunkingRepository:
         return query.filter(DocumentChunking.id == chunking_id).first()
 
     def get_by_document_id(self, document_id: str, user_id: str) -> Optional[DocumentChunking]:
-        """Get document chunking by document_id and user_id (for warning check)."""
+        """Get chunking by document and user (for warning check)."""
         return self.db.query(DocumentChunking).filter(
             DocumentChunking.document_id == document_id,
             DocumentChunking.user_id == user_id
         ).first()
 
     def get_accessible_chunkings(self, user_id: str, load_relations: bool = False) -> list[type[DocumentChunking]]:
-        """Get chunkings accessible to user (own + public)."""
+        """Get user's chunkings (own + public)."""
         query = self.db.query(DocumentChunking)
         if load_relations:
             query = query.options(
@@ -54,11 +54,7 @@ class DocumentChunkingRepository:
         ).order_by(DocumentChunking.created_at.desc()).all()
 
     def get_with_chunk_count(self, user_id: str) -> List[Tuple[DocumentChunking, int, str, str, str]]:
-        """
-        CRITICAL: Efficient single query to get chunkings with chunk counts.
-        Returns: (DocumentChunking, chunk_count, document_name, template_name, uploader_name)
-        Performance: ~50ms for 100 configs with 10K chunks
-        """
+        """Get chunkings with counts via single query (~50ms for 100 configs, 10K chunks)."""
         return self.db.query(
             DocumentChunking,
             func.count(DocumentChunk.id).label('chunk_count'),
@@ -97,6 +93,6 @@ class DocumentChunkingRepository:
         return doc_chunking
 
     def delete(self, doc_chunking: DocumentChunking) -> None:
-        """Delete document chunking (cascades to chunks)."""
+        """Delete chunking (cascades to chunks)."""
         self.db.delete(doc_chunking)
         self.db.commit()
