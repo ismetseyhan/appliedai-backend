@@ -1,49 +1,50 @@
 from typing import Dict, List, Any
 import json
 from sqlalchemy.orm import Session
-from sqlalchemy import func, Integer
 from app.entities.document_chunk import DocumentChunk
-from app.entities.document_chunking import DocumentChunking
 from app.services.llm_service import LLMService
+from app.repositories.document_chunk_repository import DocumentChunkRepository
+from app.repositories.document_chunking_repository import DocumentChunkingRepository
 
 
 class RagPromptGeneratorService:
     """Generate RAG agent prompts by analyzing document chunks."""
 
-    def __init__(self, llm_service: LLMService):
+    def __init__(self, llm_service: LLMService, db: Session):
         self.llm = llm_service
+        self.chunk_repository = DocumentChunkRepository(db)
+        self.chunking_repository = DocumentChunkingRepository(db)
 
     async def generate_prompt(
         self,
-        document_chunking_id: str,
-        db: Session
+        document_chunking_id: str
     ) -> str:
         """Generate RAG agent prompt for a chunking step."""
-        context = self._extract_chunk_context(document_chunking_id, db)
+        context = self._extract_chunk_context(document_chunking_id)
         meta_prompt = self._build_meta_prompt(context)
         final_prompt = await self._generate_with_llm(meta_prompt)
         return final_prompt
 
-    def _extract_chunk_context(self, document_chunking_id: str, db: Session) -> Dict:
+    def _extract_chunk_context(self, document_chunking_id: str) -> Dict:
         """Extract metadata schema, samples, and statistics from chunks."""
-        chunks = db.query(DocumentChunk).filter(
-            DocumentChunk.document_chunking_id == document_chunking_id
-        ).order_by(DocumentChunk.record_index).limit(10).all()
+        chunks = self.chunk_repository.get_by_document_chunking_id(
+            document_chunking_id, limit=10
+        )
 
         if not chunks:
             raise ValueError("No chunks found for this configuration")
 
-        total_chunks = db.query(func.count(DocumentChunk.id)).filter(
-            DocumentChunk.document_chunking_id == document_chunking_id
-        ).scalar()
+        total_chunks = self.chunk_repository.count_by_document_chunking_id(
+            document_chunking_id
+        )
 
-        doc_chunking = db.query(DocumentChunking).filter(
-            DocumentChunking.id == document_chunking_id
-        ).first()
+        doc_chunking = self.chunking_repository.get_by_id(
+            document_chunking_id, load_relations=True
+        )
 
         sample_records = self._format_sample_records(chunks[:2])
         metadata_schema = self._infer_metadata_schema(chunks)  # Infer from 10 chunks
-        statistics = self._calculate_statistics(document_chunking_id, metadata_schema, db)
+        statistics = self._calculate_statistics(document_chunking_id, metadata_schema)
 
         return {
             "total_chunks": total_chunks,
@@ -107,30 +108,17 @@ class RagPromptGeneratorService:
     def _calculate_statistics(
         self,
         document_chunking_id: str,
-        metadata_schema: Dict,
-        db: Session
+        metadata_schema: Dict
     ) -> Dict:
         """Calculate min/max for numeric metadata fields."""
-        stats = {}
-
         numeric_fields = [
             key for key, info in metadata_schema.items()
             if info["type"] in ["int", "float"]
         ]
 
-        for field in numeric_fields:
-            result = db.query(
-                func.min((DocumentChunk.chunk_metadata[field].cast(Integer))).label('min_val'),
-                func.max((DocumentChunk.chunk_metadata[field].cast(Integer))).label('max_val')
-            ).filter(
-                DocumentChunk.document_chunking_id == document_chunking_id
-            ).first()
-
-            if result:
-                stats[field] = {
-                    "min": result.min_val,
-                    "max": result.max_val
-                }
+        stats = self.chunk_repository.get_metadata_statistics(
+            document_chunking_id, numeric_fields
+        )
 
         return {"numeric_fields": stats}
 

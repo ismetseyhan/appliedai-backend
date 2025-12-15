@@ -1,26 +1,28 @@
+from typing import TYPE_CHECKING
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import verify_firebase_token
 from app.core.config import settings
-from app.entities.user import User
+
+if TYPE_CHECKING:
+    from app.entities.user import User
 from app.services.firebase_storage_service import FirebaseStorageService
 from app.services.document_service import DocumentService
 from app.services.sqlite_service import SQLiteService
 from app.services.llm_service import LLMService
 from app.services.google_search_service import GoogleSearchService
-from app.repositories.sqlite_database_repository import SQLiteDatabaseRepository
-from app.repositories.user_preferences_repository import UserPreferencesRepository
 from app.services.user_preferences_service import UserPreferencesService
 from app.services.template_service import TemplateService
 from app.services.llm_template_generator_service import LLMTemplateGeneratorService
 from app.services.chunking_processor_service import ChunkingProcessorService
 from app.services.document_chunking_service import DocumentChunkingService
 from app.services.rag_service import RAGService
-from app.repositories.conversation_repository import ConversationRepository
-from app.repositories.document_chunk_repository import DocumentChunkRepository
-from app.repositories.document_chunking_repository import DocumentChunkingRepository
+from app.services.rag_prompt_service import RagPromptService
+from app.services.rag_prompt_generator_service import RagPromptGeneratorService
+from app.services.conversation_service import ConversationService
+from app.services.user_service import UserService
 from app.services.orchestrator_service import OrchestratorService
 
 # HTTPBearer security scheme for Swagger UI
@@ -30,10 +32,15 @@ security = HTTPBearer(
 )
 
 
+def get_user_service(db: Session = Depends(get_db)) -> UserService:
+    """Dependency: Get User Service instance."""
+    return UserService(db)
+
+
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db)
-) -> User:
+    user_service: UserService = Depends(get_user_service)
+) -> "User":
     """
     Verify Firebase token and return user from database
 
@@ -52,7 +59,7 @@ async def get_current_user(
 
     # Get user from database
     firebase_uid = decoded_token.get("uid")
-    user = db.query(User).filter(User.id == firebase_uid).first()
+    user = user_service.get_by_firebase_uid(firebase_uid)
 
     if not user:
         raise HTTPException(
@@ -81,8 +88,7 @@ def get_sqlite_service(
     storage_service: FirebaseStorageService = Depends(get_storage_service)
 ) -> SQLiteService:
     """Dependency: Get SQLite Service instance"""
-    db_repository = SQLiteDatabaseRepository(db=db)
-    return SQLiteService(storage_service=storage_service, db_repository=db_repository)
+    return SQLiteService(storage_service=storage_service, db=db)
 
 def get_llm_service() -> LLMService:
     """Dependency: Get LLM Service instance."""
@@ -91,8 +97,7 @@ def get_llm_service() -> LLMService:
 
 def get_user_preferences_service(db: Session = Depends(get_db)) -> UserPreferencesService:
     """Dependency: Get User Preferences Service instance."""
-    repository = UserPreferencesRepository(db)
-    return UserPreferencesService(repository)
+    return UserPreferencesService(db)
 
 
 def get_google_search_service() -> GoogleSearchService:
@@ -148,30 +153,46 @@ def get_rag_service(
     )
 
 
-def get_conversation_repository(db: Session = Depends(get_db)) -> ConversationRepository:
-    """Dependency: Get Conversation Repository instance."""
-    return ConversationRepository(db)
+def get_rag_prompt_service(
+    db: Session = Depends(get_db),
+    preferences_service: UserPreferencesService = Depends(get_user_preferences_service)
+) -> RagPromptService:
+    """Dependency: Get RAG Prompt Service instance."""
+    return RagPromptService(
+        db=db,
+        preferences_service=preferences_service
+    )
+
+
+def get_rag_prompt_generator_service(
+    db: Session = Depends(get_db),
+    llm_service: LLMService = Depends(get_llm_service)
+) -> RagPromptGeneratorService:
+    """Dependency: Get RAG Prompt Generator Service instance."""
+    return RagPromptGeneratorService(llm_service, db)
+
+
+def get_conversation_service(db: Session = Depends(get_db)) -> ConversationService:
+    """Dependency: Get Conversation Service instance."""
+    return ConversationService(db)
 
 
 def get_orchestrator_service(
     db: Session = Depends(get_db),
-    llm_service: LLMService = Depends(get_llm_service),
+    conversation_service: ConversationService = Depends(get_conversation_service),
     sqlite_service: SQLiteService = Depends(get_sqlite_service),
+    llm_service: LLMService = Depends(get_llm_service),
     google_search_service: GoogleSearchService = Depends(get_google_search_service),
-    preferences_service: UserPreferencesService = Depends(get_user_preferences_service)
+    preferences_service: UserPreferencesService = Depends(get_user_preferences_service),
+    rag_service: RAGService = Depends(get_rag_service)
 ) -> OrchestratorService:
     """Dependency: Get Orchestrator Service instance."""
-    conversation_repository = ConversationRepository(db)
-    chunk_repository = DocumentChunkRepository(db)
-    chunking_repository = DocumentChunkingRepository(db)
-
     return OrchestratorService(
-        conversation_repository=conversation_repository,
-        chunk_repository=chunk_repository,
-        chunking_repository=chunking_repository,
+        conversation_service=conversation_service,
         sqlite_service=sqlite_service,
         llm_service=llm_service,
         google_search_service=google_search_service,
         preferences_service=preferences_service,
+        rag_service=rag_service,
         db=db
     )
