@@ -7,6 +7,8 @@ from app.entities.document import Document
 from app.entities.parsing_template import ParsingTemplate
 from app.entities.user import User
 from app.repositories.document_chunk_repository import DocumentChunkRepository
+from app.repositories.document_repository import DocumentRepository
+from app.repositories.parsing_template_repository import ParsingTemplateRepository
 from app.services.firebase_storage_service import FirebaseStorageService
 from app.services.pdf_extraction_service import PDFExtractionService
 from app.services.template_parser_service import TemplateParserService
@@ -15,10 +17,11 @@ from app.services.llm_service import LLMService
 
 class ChunkingProcessorService:
     def __init__(self, db: Session, storage_service: FirebaseStorageService, llm_service: LLMService):
-        self.db = db
         self.storage_service = storage_service
         self.llm_service = llm_service
         self.chunk_repository = DocumentChunkRepository(db)
+        self.document_repository = DocumentRepository(db)
+        self.template_repository = ParsingTemplateRepository(db)
 
     async def chunk_document_by_id(
         self,
@@ -28,14 +31,14 @@ class ChunkingProcessorService:
         document_chunking_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """Parse document and create chunks with embeddings."""
-        document = self.db.query(Document).filter(Document.id == document_id).first()
+        document = self.document_repository.get_by_id(document_id)
         if not document:
             raise HTTPException(status_code=404, detail="Document not found")
 
         if document.user_id != current_user.id and not document.is_public:
             raise HTTPException(status_code=403, detail="Access denied")
 
-        template = self.db.query(ParsingTemplate).filter(ParsingTemplate.id == template_id).first()
+        template = self.template_repository.get_by_id(template_id)
         if not template:
             raise HTTPException(status_code=404, detail="Template not found")
 
