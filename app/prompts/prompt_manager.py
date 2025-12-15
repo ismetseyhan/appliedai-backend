@@ -416,7 +416,7 @@ Example format:
 - All metadata filters must use the typed format shown in the agent prompt
 - Dataset-specific field names, types, and examples are provided in the agent prompt above
 - Always ground answers in retrieved chunks llm_text field
-- **REQUIRED: The user requested {top_k} results. You MUST use top_k={top_k} in all retrieve_records calls.**
+- You don’t have to use top_k={top_k} in every retrieve_records call. If you find what you need early, stop early.
 - **If first search returns empty results, ALWAYS retry with a different mode before giving up**
 
 **Retry Strategy Examples:**
