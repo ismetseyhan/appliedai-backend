@@ -37,8 +37,7 @@ IMPORTANT: Generate ONLY the system prompt text. Do NOT include explanations, me
 
 Generate the optimal Text-to-SQL agent system prompt now:"""
 
-
-# Final prompt template for Text-to-SQL agent workflow
+# Dynamic Prompt + Static
 SQL_AGENT_ENHANCED_PROMPT = """
 ## Available Tools
 
@@ -66,6 +65,15 @@ SQL_AGENT_ENHANCED_PROMPT = """
 - Respect user permissions (some operations may be restricted)
 - If a process is interrupted due to an unauthorized operation, inform the user of the reason.
 """
+
+
+SQL_ANSWER_SYNTHESIS_PROMPT = """Based on the query results, provide a clear natural language answer.
+
+Original Question: {user_query}
+
+Results: {results}
+
+Provide a concise, helpful answer:"""
 
 
 # ============================================================================
@@ -112,35 +120,6 @@ Available References:
 IMPORTANT: In your response, include the reference_id of each source you used to formulate your answer in the cited_reference_ids field.
 
 Provide your answer and list the reference IDs you cited."""
-
-
-# ============================================================================
-# Answer Synthesis Prompts (Final Answer Generation)
-# ============================================================================
-
-RAG_ANSWER_SYNTHESIS_PROMPT = """Based on the retrieved chunks below, answer the user's question.
-
-Original Question: {user_query}
-
-Retrieved Chunks:
-{chunks}
-
-IMPORTANT:
-- Ground your answer in the retrieved chunks
-- Reference specific movies/records when relevant
-- If no relevant information found, say so clearly
-- Do not hallucinate information not in the chunks
-
-Provide a clear, natural language answer:"""
-
-
-SQL_ANSWER_SYNTHESIS_PROMPT = """Based on the query results, provide a clear natural language answer.
-
-Original Question: {user_query}
-
-Results: {results}
-
-Provide a concise, helpful answer:"""
 
 
 # ============================================================================
@@ -423,4 +402,64 @@ Example format:
 - keyword mode → 0 results → Try semantic mode (catches meaning, not exact text)
 - semantic mode → 0 results → Try hybrid mode (combines both approaches)
 - Specific filter → 0 results → Remove/broaden filter constraints
+"""
+
+
+# Answer Synthesis Prompts
+RAG_ANSWER_SYNTHESIS_PROMPT = """Based on the retrieved chunks below, answer the user's question.
+
+Original Question: {user_query}
+
+Retrieved Chunks:
+{chunks}
+
+IMPORTANT:
+- Ground your answer in the retrieved chunks
+- Reference specific movies/records when relevant
+- If no relevant information found, say so clearly
+- Do not hallucinate information not in the chunks
+
+Provide a clear, natural language answer:"""
+
+
+
+# ============================================================================
+# Orchestrator Agent Supervisor Prompt (STATIC for now )
+# ============================================================================
+
+ORCHESTRATOR_SUPERVISOR_PROMPT = """You are a movie database assistant coordinator. You MUST use the available tools to answer questions.
+
+AVAILABLE TOOLS (YOU MUST USE THESE):
+1. call_sql_agent - For database queries (counts, ratings, budgets, years, actors)
+2. call_rag_agent - For movie plot searches (themes, descriptions, content, similarity)
+3. call_research_agent - For web searches (producers, directors, awards)
+
+CRITICAL INSTRUCTIONS:
+- For questions about "how many", "count", "top rated", "budget", "year" → USE call_sql_agent
+- For questions about "what is X about", "plot", "story", "theme" → USE call_rag_agent
+- For questions about "who produced", "director", "awards", "trivia" → USE call_research_agent
+
+EFFICIENCY RULES:
+1. DO NOT call the same agent with the EXACT SAME query twice
+2. You CAN call the same agent multiple times with DIFFERENT queries (e.g., SQL for year, then SQL for budget)
+3. If agents have NO dependencies, call them in PARALLEL (multiple tool calls in one response)
+4. If agents depend on each other, call them SEQUENTIALLY (wait for result, then call next)
+
+PARALLEL EXECUTION EXAMPLES:
+Q: "Tell me about Inception's plot and who directed it"
+A: Call call_rag_agent(query="Inception plot") AND call_research_agent(query="Inception director") AT THE SAME TIME
+   (No dependency - plot and director are independent)
+
+Q: "Find highest rated movie and tell me about it"
+A: FIRST call call_sql_agent(query="highest rated movie")
+   THEN call call_rag_agent(query="[movie name] plot")
+   (Sequential - need movie name first)
+
+MULTI-STEP SAME AGENT EXAMPLE:
+Q: "What is Fight Club about, when released, and who produced it?"
+A: FIRST call call_rag_agent(query="Fight Club plot") → Get movie name
+   THEN call call_sql_agent(query="Fight Club release year") AND call_research_agent(query="Fight Club producer") IN PARALLEL
+   (SQL and Research independent after knowing movie name)
+
+YOU MUST CALL AT LEAST ONE TOOL - DO NOT PROVIDE ANSWERS WITHOUT USING TOOLS!
 """

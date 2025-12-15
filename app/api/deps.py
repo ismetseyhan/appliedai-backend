@@ -18,6 +18,10 @@ from app.services.llm_template_generator_service import LLMTemplateGeneratorServ
 from app.services.chunking_processor_service import ChunkingProcessorService
 from app.services.document_chunking_service import DocumentChunkingService
 from app.services.rag_service import RAGService
+from app.repositories.conversation_repository import ConversationRepository
+from app.repositories.document_chunk_repository import DocumentChunkRepository
+from app.repositories.document_chunking_repository import DocumentChunkingRepository
+from app.services.orchestrator_service import OrchestratorService
 
 # HTTPBearer security scheme for Swagger UI
 security = HTTPBearer(
@@ -141,4 +145,33 @@ def get_rag_service(
         db=db,
         llm_service=llm_service,
         preferences_service=preferences_service
+    )
+
+
+def get_conversation_repository(db: Session = Depends(get_db)) -> ConversationRepository:
+    """Dependency: Get Conversation Repository instance."""
+    return ConversationRepository(db)
+
+
+def get_orchestrator_service(
+    db: Session = Depends(get_db),
+    llm_service: LLMService = Depends(get_llm_service),
+    sqlite_service: SQLiteService = Depends(get_sqlite_service),
+    google_search_service: GoogleSearchService = Depends(get_google_search_service),
+    preferences_service: UserPreferencesService = Depends(get_user_preferences_service)
+) -> OrchestratorService:
+    """Dependency: Get Orchestrator Service instance."""
+    conversation_repository = ConversationRepository(db)
+    chunk_repository = DocumentChunkRepository(db)
+    chunking_repository = DocumentChunkingRepository(db)
+
+    return OrchestratorService(
+        conversation_repository=conversation_repository,
+        chunk_repository=chunk_repository,
+        chunking_repository=chunking_repository,
+        sqlite_service=sqlite_service,
+        llm_service=llm_service,
+        google_search_service=google_search_service,
+        preferences_service=preferences_service,
+        db=db
     )
