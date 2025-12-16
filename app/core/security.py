@@ -1,17 +1,31 @@
 import firebase_admin
 from firebase_admin import credentials, auth
 from typing import Optional
+import json
+import os
 
 
 def initialize_firebase():
     """
     Initialize Firebase Admin SDK with Storage
 
-    Requires: GOOGLE_APPLICATION_CREDENTIALS
+    Requires: GOOGLE_APPLICATION_CREDENTIALS or FIREBASE_SERVICE_ACCOUNT_JSON
     """
     if not firebase_admin._apps:
         from app.core.config import settings
-        cred = credentials.Certificate(settings.GOOGLE_APPLICATION_CREDENTIALS)
+
+        # (Coolify deployment)
+        json_str = os.getenv('FIREBASE_SERVICE_ACCOUNT_JSON')
+        if json_str:
+            try:
+                cred_dict = json.loads(json_str)
+                cred = credentials.Certificate(cred_dict)
+            except json.JSONDecodeError as e:
+                raise ValueError(f"Invalid FIREBASE_SERVICE_ACCOUNT_JSON: {e}")
+        else:
+            # Fallback to file path (local development)
+            cred = credentials.Certificate(settings.GOOGLE_APPLICATION_CREDENTIALS)
+
         firebase_admin.initialize_app(cred, {
             'storageBucket': settings.FIREBASE_STORAGE_BUCKET
         })

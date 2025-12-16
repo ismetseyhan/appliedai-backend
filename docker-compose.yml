@@ -47,14 +47,8 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME}
 
-    command:
-      - /bin/sh
-      - -lc
-      - |
-          set -e
-          mkdir -p /app/credentials
-          printf "%s" "$FIREBASE_SERVICE_ACCOUNT_JSON" > /app/credentials/firebase-service-account.json
-          exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
+      # Firebase Service Account JSON
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${FIREBASE_SERVICE_ACCOUNT_JSON}
 
     volumes:
       # Persistent storage for uploads and cached databases
