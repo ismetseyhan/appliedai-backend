@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  # PostgreSQL with pgvector for local testing
+  db-local:
+    image: pgvector/pgvector:pg16
+    container_name: appliedai-db-local
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: movieapp
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_local_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - appliedai-local
+
+  # Backend API
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: appliedai-backend-local
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      # Mount Firebase credentials
+      - ./firebase-service-account.json:/app/firebase-service-account.json:ro
+      # Mount uploads directory (optional, for persistence)
+      - ./uploads:/app/uploads
+      - ./cached_dbs:/app/cached_dbs
+    depends_on:
+      db-local:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - appliedai-local
+
+volumes:
+  postgres_local_data:
+    driver: local
+
+networks:
+  appliedai-local:
+    driver: bridge

@@ -1,22 +1,76 @@
+version: '3.8'
+
 services:
-  postgres:
-    image: pgvector/pgvector:pg16
-    container_name: movieapp-postgres
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: movieapp
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: appliedai-backend
     restart: unless-stopped
+    expose:
+      - "8000"
+    environment:
+      # API Settings
+      PROJECT_NAME: ${PROJECT_NAME:-Multi Agent Movie Intelligence System}
+      API_BASE_PREFIX: ${API_BASE_PREFIX:-/api}
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+
+      # CORS
+      CORS_ORIGINS_STR: ${CORS_ORIGINS_STR}
+
+      # Firebase Admin SDK
+      GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS:-/app/credentials/firebase-service-account.json}
+
+      # Firebase Storage
+      FIREBASE_STORAGE_BUCKET: ${FIREBASE_STORAGE_BUCKET}
+
+      # OpenAI Configuration
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_MODEL_NAME: ${OPENAI_MODEL_NAME:-gpt-4o}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+
+      # Agent-Specific Models
+      ORCHESTRATOR_MODEL_NAME: ${ORCHESTRATOR_MODEL_NAME:-gpt-5.2}
+      TEXT_TO_SQL_MODEL_NAME: ${TEXT_TO_SQL_MODEL_NAME:-gpt-5.2}
+      RAG_MODEL_NAME: ${RAG_MODEL_NAME:-gpt-4o}
+      RESEARCH_MODEL_NAME: ${RESEARCH_MODEL_NAME:-gpt-4o}
+
+      # Google Search API
+      GOOGLE_SEARCH_API_KEY: ${GOOGLE_SEARCH_API_KEY}
+      GOOGLE_SEARCH_ENGINE_ID: ${GOOGLE_SEARCH_ENGINE_ID}
+
+      # Database (Remote Production Database)
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT:-5532}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+    volumes:
+      # Persistent storage for uploads and cached databases
+      - uploads_data:/app/uploads
+      - cached_dbs_data:/app/cached_dbs
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      # Coolify Traefik labels for domain routing
+      - "traefik.enable=true"
+      - "traefik.http.routers.appliedai-backend.rule=Host(`appliedai-be.ismetseyhan.com`)"
+      - "traefik.http.routers.appliedai-backend.entrypoints=websecure"
+      - "traefik.http.routers.appliedai-backend.tls=true"
+      - "traefik.http.routers.appliedai-backend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.appliedai-backend.loadbalancer.server.port=8000"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
-  postgres_data:
+  uploads_data:
+    driver: local
+  cached_dbs_data:
     driver: local
