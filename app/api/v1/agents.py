@@ -6,16 +6,19 @@ import time
 
 from app.api.deps import (
     get_sqlite_service,
-    get_llm_service,
+    get_text_to_sql_llm_service,
+    get_research_llm_service,
     get_current_user,
     get_user_preferences_service,
     get_google_search_service,
-    get_rag_service
+    get_rag_service,
+    get_agent_health_service
 )
 from app.schemas.text_to_sql import TextToSQLRequest, TextToSQLResponse
 from app.schemas.research import ResearchRequest, ResearchResponse
 from app.schemas.agent_settings import AgentSettingsResponse, QueryCheckerToggleRequest
 from app.schemas.rag import RAGRequest, RAGResponse
+from app.schemas.agent_health import SystemHealthResponse
 from app.services.sqlite_service import SQLiteService
 from app.services.llm_service import LLMService
 from app.services.google_search_service import GoogleSearchService
@@ -38,7 +41,7 @@ async def text_to_sql(
     request: TextToSQLRequest,
     current_user: User = Depends(get_current_user),
     sqlite_service: SQLiteService = Depends(get_sqlite_service),
-    llm_service: LLMService = Depends(get_llm_service),
+    llm_service: LLMService = Depends(get_text_to_sql_llm_service),
     preferences_service: UserPreferencesService = Depends(get_user_preferences_service)
 ):
     """
@@ -71,7 +74,7 @@ async def text_to_sql(
 async def research(
     request: ResearchRequest,
     current_user: User = Depends(get_current_user),
-    llm_service: LLMService = Depends(get_llm_service),
+    llm_service: LLMService = Depends(get_research_llm_service),
     search_service: GoogleSearchService = Depends(get_google_search_service)
 ):
     """
@@ -150,3 +153,19 @@ async def rag_query(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"RAG agent failed: {str(e)}")
+
+
+@router.get(
+    "/health",
+    response_model=SystemHealthResponse,
+    summary="Get agent health status",
+    description="Check health status of all AI agents (Research, Text-to-SQL, RAG)"
+)
+async def get_agent_health(
+    current_user: User = Depends(get_current_user),
+    health_service: 'AgentHealthService' = Depends(get_agent_health_service)
+):
+    """
+    Check health status of all AI agents.
+    """
+    return health_service.get_system_health(current_user.id)

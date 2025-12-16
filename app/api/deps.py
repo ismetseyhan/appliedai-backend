@@ -24,6 +24,7 @@ from app.services.rag_prompt_generator_service import RagPromptGeneratorService
 from app.services.conversation_service import ConversationService
 from app.services.user_service import UserService
 from app.services.orchestrator_service import OrchestratorService
+from app.services.analytics_service import AnalyticsService
 
 # HTTPBearer security scheme for Swagger UI
 security = HTTPBearer(
@@ -91,8 +92,27 @@ def get_sqlite_service(
     return SQLiteService(storage_service=storage_service, db=db)
 
 def get_llm_service() -> LLMService:
-    """Dependency: Get LLM Service instance."""
+    """Dependency: Get LLM Service instance (uses default OPENAI_MODEL_NAME)."""
     return LLMService()
+
+def get_text_to_sql_llm_service() -> LLMService:
+    """Dependency: Get LLM Service for Text-to-SQL agent."""
+    return LLMService(model_name=settings.get_text_to_sql_model())
+
+
+def get_rag_llm_service() -> LLMService:
+    """Dependency: Get LLM Service for RAG agent."""
+    return LLMService(model_name=settings.get_rag_model())
+
+
+def get_research_llm_service() -> LLMService:
+    """Dependency: Get LLM Service for Research agent."""
+    return LLMService(model_name=settings.get_research_model())
+
+
+def get_orchestrator_llm_service() -> LLMService:
+    """Dependency: Get LLM Service for Orchestrator agent."""
+    return LLMService(model_name=settings.get_orchestrator_model())
 
 
 def get_user_preferences_service(db: Session = Depends(get_db)) -> UserPreferencesService:
@@ -142,7 +162,7 @@ def get_document_chunking_service(
 
 def get_rag_service(
     db: Session = Depends(get_db),
-    llm_service: LLMService = Depends(get_llm_service),
+    llm_service: LLMService = Depends(get_rag_llm_service),
     preferences_service: UserPreferencesService = Depends(get_user_preferences_service)
 ) -> RAGService:
     """Dependency: Get RAG Service instance."""
@@ -181,7 +201,7 @@ def get_orchestrator_service(
     db: Session = Depends(get_db),
     conversation_service: ConversationService = Depends(get_conversation_service),
     sqlite_service: SQLiteService = Depends(get_sqlite_service),
-    llm_service: LLMService = Depends(get_llm_service),
+    llm_service: LLMService = Depends(get_orchestrator_llm_service),
     google_search_service: GoogleSearchService = Depends(get_google_search_service),
     preferences_service: UserPreferencesService = Depends(get_user_preferences_service),
     rag_service: RAGService = Depends(get_rag_service)
@@ -196,3 +216,14 @@ def get_orchestrator_service(
         rag_service=rag_service,
         db=db
     )
+
+
+def get_analytics_service(db: Session = Depends(get_db)) -> AnalyticsService:
+    """Dependency: Get Analytics Service instance."""
+    return AnalyticsService(db)
+
+
+def get_agent_health_service(db: Session = Depends(get_db)) -> 'AgentHealthService':
+    """Dependency: Get Agent Health Service instance."""
+    from app.services.agent_health_service import AgentHealthService
+    return AgentHealthService(db)

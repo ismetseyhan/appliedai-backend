@@ -20,6 +20,12 @@ class Settings(BaseSettings):
     OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"  # 1536 dims
     OPENAI_BASE_URL: str = "https://api.openai.com/v1"
 
+    # Agent-Specific Models (Optional)
+    TEXT_TO_SQL_MODEL_NAME: str = ""
+    RAG_MODEL_NAME: str = ""
+    RESEARCH_MODEL_NAME: str = ""
+    ORCHESTRATOR_MODEL_NAME: str = ""
+
     # Google Custom Search Configuration
     GOOGLE_SEARCH_API_KEY: str = ""
     GOOGLE_SEARCH_ENGINE_ID: str = ""
@@ -46,6 +52,18 @@ class Settings(BaseSettings):
     @property
     def is_development(self) -> bool:
         return self.ENVIRONMENT.lower() == "development"
+
+    def get_text_to_sql_model(self) -> str:
+        return self.TEXT_TO_SQL_MODEL_NAME or self.OPENAI_MODEL_NAME or "gpt-4o"
+
+    def get_rag_model(self) -> str:
+        return self.RAG_MODEL_NAME or self.OPENAI_MODEL_NAME or "gpt-4o"
+
+    def get_research_model(self) -> str:
+        return self.RESEARCH_MODEL_NAME or self.OPENAI_MODEL_NAME or "gpt-4o"
+
+    def get_orchestrator_model(self) -> str:
+        return self.ORCHESTRATOR_MODEL_NAME or self.OPENAI_MODEL_NAME or "gpt-4o"
 
 
 settings = Settings()

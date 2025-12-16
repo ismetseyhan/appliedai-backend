@@ -36,13 +36,23 @@ class LLMService:
         max_tokens: Optional[int] = None,
         **kwargs: Any,
     ) -> str:
-        response = self.client.chat.completions.create(
-            model=model or self.model_name,
-            messages=list(messages),
-            temperature=temperature,
-            max_tokens=max_tokens,
+
+        model_name = model or self.model_name
+        completion_params = {
+            "model": model_name,
+            "messages": list(messages),
+            "temperature": temperature,
             **kwargs,
-        )
+        }
+
+        if max_tokens is not None:
+            # GPT-5+ models (gpt-5, gpt-5.2, gpt-5-mini, etc.)
+            if model_name.startswith("gpt-5"):
+                completion_params["max_completion_tokens"] = max_tokens
+            else:
+                # GPT-4 and earlier models
+                completion_params["max_tokens"] = max_tokens
+        response = self.client.chat.completions.create(**completion_params)
         return response.choices[0].message.content or ""
 
     async def achat_completion(
@@ -54,13 +64,25 @@ class LLMService:
         **kwargs: Any,
     ) -> str:
 
-        response = await self.async_client.chat.completions.create(
-            model=model or self.model_name,
-            messages=list(messages),
-            temperature=temperature,
-            max_tokens=max_tokens,
+        model_name = model or self.model_name
+
+        # GPT-5 models
+        completion_params = {
+            "model": model_name,
+            "messages": list(messages),
+            "temperature": temperature,
             **kwargs,
-        )
+        }
+
+        if max_tokens is not None:
+            # GPT-5+ models
+            if model_name.startswith("gpt-5"):
+                completion_params["max_completion_tokens"] = max_tokens
+            else:
+                # GPT-4
+                completion_params["max_tokens"] = max_tokens
+
+        response = await self.async_client.chat.completions.create(**completion_params)
         return response.choices[0].message.content or ""
 
     def get_client(self) -> OpenAI:
