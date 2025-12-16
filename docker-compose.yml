@@ -9,6 +9,7 @@ services:
     restart: unless-stopped
     expose:
       - "8000"
+
     environment:
       # API Settings
       PROJECT_NAME: ${PROJECT_NAME:-Multi Agent Movie Intelligence System}
@@ -45,16 +46,25 @@ services:
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME}
+
+    entrypoint: ["/bin/sh", "-lc"]
+    command: >
+      mkdir -p /app/credentials &&
+      printf "%s" "$FIREBASE_SERVICE_ACCOUNT_JSON" > /app/credentials/firebase-service-account.json &&
+      exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
+
     volumes:
       # Persistent storage for uploads and cached databases
       - uploads_data:/app/uploads
       - cached_dbs_data:/app/cached_dbs
+
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+
     labels:
       # Coolify Traefik labels for domain routing
       - "traefik.enable=true"
@@ -63,6 +73,7 @@ services:
       - "traefik.http.routers.appliedai-backend.tls=true"
       - "traefik.http.routers.appliedai-backend.tls.certresolver=letsencrypt"
       - "traefik.http.services.appliedai-backend.loadbalancer.server.port=8000"
+
     logging:
       driver: "json-file"
       options:
