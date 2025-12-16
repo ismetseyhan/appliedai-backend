@@ -92,7 +92,7 @@ class AnalyticsService:
                 trend=self._calculate_trend(
                     avg_time_today or 0,
                     avg_time_yesterday or 0,
-                    "faster",
+                    "",
                     inverse=True  # Lower is better for time
                 ),
                 color="#ff9800"

@@ -10,7 +10,7 @@ class MetricTrend(BaseModel):
     """Trend information for a metric"""
     direction: Literal["up", "down", "neutral"]
     percentage: float
-    display_text: str  # e.g., "+12% from yesterday", "-8% faster"
+    display_text: str  # e.g., "+12%", "-8%"
 
 
 class DashboardMetric(BaseModel):
@@ -68,7 +68,7 @@ class DashboardMetricsResponse(BaseModel):
                     "trend": {
                         "direction": "down",
                         "percentage": 8.0,
-                        "display_text": "-8% faster"
+                        "display_text": "-8%"
                     },
                     "color": "#ff9800"
                 },
