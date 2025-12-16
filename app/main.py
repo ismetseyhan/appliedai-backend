@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from app.core.config import settings
 from app.core.security import initialize_firebase
-from app.api.v1 import auth, documents, sqlite, llm, agents, parsing_templates, document_chunking, rag_prompt, orchestrator, conversations
+from app.api.v1 import auth, documents, sqlite, llm, agents, parsing_templates, document_chunking, rag_prompt, orchestrator, conversations, analytics
 
 # Initialize Firebase
 initialize_firebase()
@@ -123,6 +123,12 @@ api_router.include_router(
     conversations.router,
     prefix="/orchestrator/conversations",
     tags=["Conversations"]
+)
+# analytics router
+api_router.include_router(
+    analytics.router,
+    prefix="/analytics",
+    tags=["Analytics"]
 )
 
 # API v1 router
