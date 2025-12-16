@@ -56,20 +56,11 @@ services:
       - cached_dbs_data:/app/cached_dbs
 
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "-O", "/dev/null", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
-
-    labels:
-      # Coolify Traefik labels for domain routing
-      - "traefik.enable=true"
-      - "traefik.http.routers.appliedai-backend.rule=Host(`appliedai-be.ismetseyhan.com`)"
-      - "traefik.http.routers.appliedai-backend.entrypoints=websecure"
-      - "traefik.http.routers.appliedai-backend.tls=true"
-      - "traefik.http.routers.appliedai-backend.tls.certresolver=letsencrypt"
-      - "traefik.http.services.appliedai-backend.loadbalancer.server.port=8000"
 
     logging:
       driver: "json-file"
