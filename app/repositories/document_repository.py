@@ -29,6 +29,12 @@ class DocumentRepository:
             query = query.options(joinedload(Document.user))
         return query.filter(Document.id == document_id).first()
 
+    def get_by_storage_path(self, storage_path: str) -> Optional[Document]:
+        """Get document by storage path."""
+        return self.db.query(Document).filter(
+            Document.storage_path == storage_path
+        ).first()
+
     def get_accessible_documents(
         self,
         user_id: str,

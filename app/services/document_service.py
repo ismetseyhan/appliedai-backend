@@ -68,19 +68,24 @@ class DocumentService:
                 detail="Failed to upload file to storage"
             )
 
-        # Create database record
-        document = Document(
-            user_id=user.id,
-            file_name=file.filename,
-            file_path=f"documents/{user.id}/{file.filename}",
-            storage_path=storage_path,
-            file_size=file_size,
-            mime_type='application/pdf',
-            is_public=is_public,
-            processing_status=ProcessingStatus.PENDING
-        )
+        existing_document = self.repository.get_by_storage_path(storage_path)
 
-        document = self.repository.create(document)
+        if existing_document:
+            existing_document.file_size = file_size
+            existing_document.processing_status = ProcessingStatus.PENDING
+            document = self.repository.update(existing_document)
+        else:
+            document = Document(
+                user_id=user.id,
+                file_name=file.filename,
+                file_path=f"documents/{user.id}/{file.filename}",
+                storage_path=storage_path,
+                file_size=file_size,
+                mime_type='application/pdf',
+                is_public=is_public,
+                processing_status=ProcessingStatus.PENDING
+            )
+            document = self.repository.create(document)
 
         # Build response with uploader name
         response = DocumentResponse.model_validate(document)
