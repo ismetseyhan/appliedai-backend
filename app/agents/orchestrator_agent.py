@@ -32,13 +32,13 @@ class OrchestratorAgent:
     """Multi-agent orchestrator using LangGraph supervisor pattern."""
 
     def __init__(
-        self,
-        llm_service: LLMService,
-        sql_agent: TextToSQLAgent,
-        research_agent: ResearchAgent,
-        rag_agent: Optional[RAGAgent],
-        user_id: str,
-        db: Session
+            self,
+            llm_service: LLMService,
+            sql_agent: TextToSQLAgent,
+            research_agent: ResearchAgent,
+            rag_agent: Optional[RAGAgent],
+            user_id: str,
+            db: Session
     ):
         self.llm_service = llm_service
         self.sql_agent = sql_agent
@@ -52,10 +52,10 @@ class OrchestratorAgent:
         self.start_time: float = 0
 
     async def query(
-        self,
-        user_query: str,
-        conversation_history: List[Dict[str, str]] = None,
-        max_iterations: int = 5
+            self,
+            user_query: str,
+            conversation_history: List[Dict[str, str]] = None,
+            max_iterations: int = 5
     ) -> Dict[str, Any]:
         """Execute orchestrated query using LangGraph."""
         self.start_time = time.time()
@@ -147,6 +147,9 @@ class OrchestratorAgent:
                     elif tool_name == "call_research_agent":
                         result = await self._execute_research_agent(tool_args["query"])
                         return ("research_agent", result, tool_id, None)
+                    elif tool_name == "get_current_datetime":
+                        result = await self._execute_datetime_tool()
+                        return ("datetime_tool", result, tool_id, None)
                     else:
                         result = {"error": f"Unknown tool: {tool_name}"}
                         return (tool_name, result, tool_id, None)
@@ -172,7 +175,8 @@ class OrchestratorAgent:
                 else:
                     agents_called.append(agent_name)
                     agent_responses[agent_name] = result
-                    observation = json.dumps(result["result_summary"]) if "result_summary" in result else json.dumps(result)
+                    observation = json.dumps(result["result_summary"]) if "result_summary" in result else json.dumps(
+                        result)
                     tool_messages.append(ToolMessage(
                         content=observation,
                         tool_call_id=tool_id
@@ -213,6 +217,7 @@ class OrchestratorAgent:
 
     def _create_agent_tools(self) -> List:
         """Create LangChain tools for each agent."""
+
         @tool
         async def call_sql_agent(query: str) -> str:
             """Query the SQLite movie database using Text-to-SQL agent.
@@ -246,10 +251,23 @@ class OrchestratorAgent:
             - Awards and accolades
             - Real-world context and trivia
             - People and crew information
+            - Any research on internet
             """
             return "Tool executed via bind_tools"
 
-        return [call_sql_agent, call_rag_agent, call_research_agent]
+        @tool
+        async def get_current_datetime() -> str:
+            """Get current date and time.
+
+            Use this for:
+            - Questions about current date or time
+            - Calculating time differences or age
+            - Determining current year, month, day
+            - Time-based context for queries
+            """
+            return "Tool executed via bind_tools"
+
+        return [call_sql_agent, call_rag_agent, call_research_agent, get_current_datetime]
 
     async def _execute_sql_agent(self, query: str) -> Dict[str, Any]:
         """Execute Text-to-SQL agent."""
@@ -340,6 +358,53 @@ class OrchestratorAgent:
             traceback.print_exc()
             return {
                 "result_summary": f"Research Agent error: {str(e)}",
+                "execution_time_ms": int((time.time() - agent_start) * 1000),
+                "steps": [],
+                "specific_data": {"error": str(e)}
+            }
+
+    async def _execute_datetime_tool(self) -> Dict[str, Any]:
+        """Execute datetime tool to get current date and time."""
+        from datetime import datetime
+        import pytz
+
+        agent_start = time.time()
+
+        try:
+            utc_now = datetime.now(pytz.UTC)
+            local_now = datetime.now()
+
+            result_text = f"""Current Date and Time:
+- UTC: {utc_now.strftime('%Y-%m-%d %H:%M:%S %Z')}
+- Local: {local_now.strftime('%Y-%m-%d %H:%M:%S')}
+- Year: {local_now.year}
+- Month: {local_now.strftime('%B')} ({local_now.month})
+- Day: {local_now.day}
+- Weekday: {local_now.strftime('%A')}
+- Time: {local_now.strftime('%H:%M:%S')}"""
+
+            execution_time_ms = int((time.time() - agent_start) * 1000)
+
+            return {
+                "result_summary": result_text,
+                "execution_time_ms": execution_time_ms,
+                "steps": [],
+                "specific_data": {
+                    "utc": utc_now.isoformat(),
+                    "local": local_now.isoformat(),
+                    "year": local_now.year,
+                    "month": local_now.month,
+                    "day": local_now.day,
+                    "weekday": local_now.strftime('%A'),
+                    "formatted": local_now.strftime('%Y-%m-%d %H:%M:%S')
+                }
+            }
+        except Exception as e:
+            print(f"[DATETIME TOOL ERROR] {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return {
+                "result_summary": f"Datetime tool error: {str(e)}",
                 "execution_time_ms": int((time.time() - agent_start) * 1000),
                 "steps": [],
                 "specific_data": {"error": str(e)}

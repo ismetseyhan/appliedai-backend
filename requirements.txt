@@ -8,6 +8,7 @@ python-multipart==0.0.20
 
 # Environment & Utilities
 python-dotenv==1.2.1
+pytz==2025.2
 
 # Firebase Authentication
 firebase-admin==7.1.0

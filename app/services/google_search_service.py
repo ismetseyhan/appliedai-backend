@@ -1,3 +1,4 @@
+import asyncio
 from typing import List
 from pydantic import BaseModel
 from langchain_google_community import GoogleSearchAPIWrapper
@@ -27,17 +28,24 @@ class GoogleSearchService:
             google_cse_id=engine_id
         )
 
-    def search(self, query: str, num_results: int = 5) -> List[SearchResult]:
+    async def search(self, query: str, num_results: int = 5) -> List[SearchResult]:
         """
-        Search the web and return structured results.
+        Async search using Google Custom Search API.
             query: Search query string
             num_results: Number of results to return (default 5, max 10)
             Returns List of SearchResult objects with title, url, snippet
-
         """
         try:
             num_results = min(num_results, self.max_results)
-            results = self.wrapper.results(query, num_results=num_results)
+
+            # Run sync wrapper in thread pool
+            loop = asyncio.get_event_loop()
+            results = await loop.run_in_executor(
+                None,
+                self.wrapper.results,
+                query,
+                num_results
+            )
 
             search_results = []
             for result in results:
