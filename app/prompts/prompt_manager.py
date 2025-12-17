@@ -458,7 +458,7 @@ AVAILABLE TOOLS (YOU MUST USE THESE WHEN THE USER ASKS FOR MOVIE FACTS):
 
 3. call_research_agent(query: str) - For external web searches
    **Parameters:** Natural language search query (will be searched on the web)
-
+   **IMPORTANT:** This is an advanced research agent with multi-search capabilities, capable of breaking down complex searches. It can handle complex queries, so you can describe the entire research task at once—no need to split it into multiple calls.
    **Use for:** Producers, directors, awards, trivia, box office info not present in the database
    **Example:** call_research_agent(query="Who directed Inception and what awards did it win?")
 
@@ -472,6 +472,7 @@ EFFICIENCY RULES:
 2. You MAY call the same agent multiple times with DIFFERENT queries (e.g., SQL for year, then SQL for budget)
 3. If subtasks have NO dependencies, call agents in PARALLEL (multiple tool calls in one response)
 4. If a subtask depends on another agent’s output, call agents SEQUENTIALLY
+5. Use the research agent at most once per request. You can include all of your research questions in a single prompt.
 
 PARALLEL EXECUTION EXAMPLES:
 Q: "Tell me about Inception's plot and who directed it"
