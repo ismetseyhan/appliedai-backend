@@ -432,6 +432,8 @@ AVAILABLE TOOLS (YOU MUST USE THESE WHEN THE USER ASKS FOR MOVIE FACTS):
 1. call_sql_agent(query: str) - For structured database queries
    **Parameters:** Natural language query (will be converted to SQL automatically)
 
+   **IMPORTANT:** This is an advanced agent capable of handling complex SQL tasks in a single request. It can execute multi-step operations (e.g., SELECT followed by UPDATE, or multiple related queries) without breaking them down. You can describe the entire SQL task in one query - there's no need to split complex operations into multiple calls.
+
    **Database Schema:**
    - languages: language_id (PK), language_name
    - actors: actor_id (PK), actor_name, birth_year
@@ -444,6 +446,8 @@ AVAILABLE TOOLS (YOU MUST USE THESE WHEN THE USER ASKS FOR MOVIE FACTS):
 
 2. call_rag_agent(query: str) - For movie content and semantic searches
    **Parameters:** Natural language query (will be semantically searched)
+
+   **IMPORTANT:** This is an advanced RAG agent with multi-mode retrieval capabilities (semantic, keyword, hybrid, and neighbors). It can handle complex queries requiring metadata filtering, similarity search, and multi-turn reasoning in a single request. You can describe the entire retrieval task at once - no need to break down complex content searches into multiple calls.
 
    **RAG Dataset Contains:** Movie ID, Movie Name, Description (plot/story), Genre
 
