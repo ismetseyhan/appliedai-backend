@@ -1,6 +1,7 @@
 # Multi-Agent Movie Intelligence System - Backend
 
 FastAPI backend with AI agents, document processing, and multi-modal data intelligence.
+<img width="1920" height="992" alt="ss1" src="https://github.com/user-attachments/assets/16b3773b-f444-4881-b73f-cc4e9e36b1a9" />
 
 ## Overview
 
