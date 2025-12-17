@@ -42,7 +42,7 @@ async def test_parse(
 
 
 @router.post(
-    "/",
+    "",
     response_model=TemplateResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create template"
@@ -56,7 +56,7 @@ async def create_template(
 
 
 @router.get(
-    "/",
+    "",
     response_model=TemplateListResponse,
     summary="List templates"
 )
